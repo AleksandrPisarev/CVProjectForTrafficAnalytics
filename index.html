@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проект Компьютерного Зрения | Аналитика Дорожного Движения</title>
+    <!-- Подключение CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <h1>Аналитика Дорожного Движения</h1>
+        <nav>
+            <ul>
+                <li><a href="#about">О проекте</a></li>
+                <li><a href="#features">Особенности</a></li>
+                <li><a href="#team">Команда</a></li>
+                <li><a href="#contact">Контакты</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        <section id="about">
+            <div class="container">
+                <h2>О проекте</h2>
+                <p>Наш проект посвящен разработке системы анализа дорожных ситуаций на основе технологий компьютерного зрения.</p>
+                <p>Мы используем алгоритмы глубокого обучения и обработки изображений для повышения уровня безопасности на дорогах и оптимизации транспортного потока.</p>
+            </div>
+        </section>
+        
+        <section id="features">
+            <div class="container">
+                <h2>Основные особенности:</h2>
+                <ul>
+                    <li>Распознавание транспортных средств разных типов</li>
+                    <li>Анализ дорожной обстановки в режиме реального времени</li>
+                    <li>Предсказание аварийных ситуаций и предотвращение ДТП</li>
+                    <li>Интеграция с существующими системами мониторинга дорог</li>
+                </ul>
+            </div>
+        </section>
+        
+        <section id="team">
+            <div class="container">
+                <h2>Наша команда</h2>
+                <p>Команда состоит из опытных разработчиков и исследователей в области машинного обучения и аналитики больших данных.</p>
+                <img src="team.jpg" alt="Фотография команды" width="600px"/>
+            </div>
+        </section>
+        
+        <section id="contact">
+            <div class="container">
+                <h2>Связаться с нами</h2>
+                <form action="/submit_contact_form.php" method="post">
+                    <label for="name">Имя:</label>
+                    <input type="text" id="name" name="name" required>
+                    
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                    
+                    <label for="message">Сообщение:</label>
+                    <textarea id="message" name="message"></textarea>
+                    
+                    <button type="submit">Отправить сообщение</button>
+                </form>
+            </div>
+        </section>
+    </main>
+    
+    <footer class="site-footer">
+        <p>© 2025 Все права защищены</p>
+    </footer>
+    
+    <!-- Подключение JavaScript -->
+    <script src="scripts.js"></script>
+</body>
+</html>

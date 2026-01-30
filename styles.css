@@ -1,0 +1,7 @@
+h1{
+    text-align: center;
+}
+nav ul{
+    display: flex;
+    justify-content: space-around;
+}

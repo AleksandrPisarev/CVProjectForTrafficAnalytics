@@ -1,0 +1,43 @@
+.header {
+  position: fixed;
+  top: 0;
+  z-index: 1000;
+  height: 70px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 30px;
+
+  /* Эффект стекла */
+  background: rgba(15, 23, 42, 0.4); /*Очень слабая прозрачность*/
+  backdrop-filter: blur(15px); /*Сильное размытие фона*/
+  -webkit-backdrop-filter: blur(15px);
+  
+  /* Граница как блик на стекле */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+}
+
+.project_name{
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+  color: #fff;
+  text-transform: uppercase;
+  text-shadow: 
+    0 0 5px #fff,                /* 1. Белое ядро (дает четкость буквам) */
+    0 0 10px #38bdf8,            /* 2. Ближнее голубое свечение */
+    0 0 20px #38bdf8,            /* 3. Средний ореол */
+    0 0 40px rgba(56, 189, 248, 0.8); /* 4. Дальнее рассеивание */
+    
+  /* Немного добавим яркости самим буквам */
+  filter: brightness(1.2); 
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-family: monospace;
+  font-size: 20px;
+  color: aliceblue;
+}

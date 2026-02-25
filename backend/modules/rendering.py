@@ -23,9 +23,11 @@ class Rendering:
         self.__draw_fps_label(frame.image, FPS)
 
         '''Функция изменеия размеров окна изображения'''
-        resized_frame = self.__resized_window(frame.image, self.render_cfg['width'], self.render_cfg['height'])
-        cv2.imshow(self.win_name, resized_frame)
+        self.__resized_window(frame.image, self.render_cfg['width'], self.render_cfg['height'])
 
+        # cv2.imshow(self.win_name, frame.image)
+        # Сжимаем кадр в jpg (чтобы передавать быстрее) и возвращаем в main
+        return cv2.imencode('.jpg', frame.image)
 
     def __draw_fps_label(self, frame, FPS):
         '''Настройки шрифта и текста'''
@@ -70,8 +72,7 @@ class Rendering:
 
         new_w = int(w * scale)
         new_h = int(h * scale)
-
-        return cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
     def __change_yaml_value(self, val):
         if val is None or str(val).lower() in ['none', 'null', '']:

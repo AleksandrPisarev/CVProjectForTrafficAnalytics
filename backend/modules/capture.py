@@ -29,15 +29,17 @@ class Frame_capture:
             )
 
     def process(self):
-        while True:
-            time_stamp = time.perf_counter()
-            ret, frame = self.cap.read()
-            if not ret:
-                break
-            key = cv2.waitKey(10)
-            if key == 27:
-                break
-            yield Frame(_image=frame, _time_stamp=time_stamp)
+        try:
+            while True:
+                time_stamp = time.perf_counter()
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
+
+                yield Frame(_image=frame, _time_stamp=time_stamp)
+        finally:
+            self.cap.release()
+            cv2.destroyAllWindows()
 
     def release(self):
         """Освобождение ресурсов."""

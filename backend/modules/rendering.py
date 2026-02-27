@@ -4,13 +4,9 @@ from modules.frame import Frame
 
 class Rendering:
     def __init__(self, config):
-        self.render_cfg = config['rendering']
-        if isinstance(config['capture']['source'], int):
-            self.win_name = 'broadcast from camera'
-        else:
-            self.win_name = f'broadcast from {config["capture"]["source"]}'
+        self.config = config
         '''Очередь для хранения меток времени последних  maxlen кадров'''
-        self.frame_times = deque(maxlen=self.render_cfg['fps_buffer_size'])
+        self.frame_times = deque(maxlen=config['fps_buffer_size'])
 
     def process(self, frame: Frame):
         '''Подсчет FPS'''
@@ -23,11 +19,10 @@ class Rendering:
         self.__draw_fps_label(frame.image, FPS)
 
         '''Функция изменеия размеров окна изображения'''
-        self.__resized_window(frame.image, self.render_cfg['width'], self.render_cfg['height'])
+        resizing_frame_image = self.__resized_window(frame.image, self.config['width'], self.config['height'])
 
-        # cv2.imshow(self.win_name, frame.image)
-        # Сжимаем кадр в jpg (чтобы передавать быстрее) и возвращаем в main
-        return cv2.imencode('.jpg', frame.image)
+        # Сжимаем кадр в jpg (чтобы передавать быстрее) и возвращаем в Object_container
+        return cv2.imencode('.jpg', resizing_frame_image)
 
     def __draw_fps_label(self, frame, FPS):
         '''Настройки шрифта и текста'''
@@ -42,7 +37,7 @@ class Rendering:
         (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
 
         '''Задаем координаты прямоугольника (верхний левый угол)'''
-        x, y = 5, 5
+        x, y = 100, 100
 
         '''Рисуем черный прямоугольник'''
         cv2.rectangle(frame, (x, y), (x + text_width + 2, y + text_height + baseline), color_bg, -1)
@@ -72,7 +67,7 @@ class Rendering:
 
         new_w = int(w * scale)
         new_h = int(h * scale)
-        cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        return  cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
     def __change_yaml_value(self, val):
         if val is None or str(val).lower() in ['none', 'null', '']:

@@ -1,0 +1,33 @@
+services:
+  # Бэкенд (Python + CUDA)
+  api:
+    build: ./backend
+    container_name: cvproject-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    # Сигнал для мягкой остановки (Python лучше понимает SIGINT)
+    stop_signal: SIGINT
+    # Даем 30 секунд на очистку ресурсов перед принудительным убийством
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Фронтенд (React)
+  frontend:
+    build: ./web
+    container_name: cvproject-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./web:/app
+      # Анонимный волюм, чтобы node_modules внутри контейнера не заменялись пустотой с хоста
+      - /app/node_modules
+    depends_on:
+      - api

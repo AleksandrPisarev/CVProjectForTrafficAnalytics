@@ -7,16 +7,16 @@ class Rendering:
         self.config = config
         '''Очередь для хранения меток времени последних  maxlen кадров'''
         self.frame_times = deque(maxlen=config['fps_buffer_size'])
+        self.FPS = 0
 
     def process(self, frame: Frame):
         '''Подсчет FPS'''
         self.frame_times.append(frame.time_stamp)
         if len(self.frame_times) > 1:
             total_time = self.frame_times[-1] - self.frame_times[0]
-            FPS = (len(self.frame_times) - 1) / total_time
-        else: FPS = 0
+            self.FPS = (len(self.frame_times) - 1) / total_time
         '''Функция прорисовки FPS'''
-        self.__draw_fps_label(frame.image, FPS)
+        # self.__draw_fps_label(frame.image, self.FPS)
 
         '''Функция изменеия размеров окна изображения'''
         resizing_frame_image = self.__resized_window(frame.image, self.config['width'], self.config['height'])

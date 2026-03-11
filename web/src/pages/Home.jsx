@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Car, Gauge, Cpu } from "lucide-react"
+import { useState, useEffect } from 'react'
+import { Car, Gauge, Cpu, Activity } from "lucide-react"
 import MetricCard from "../components/MetricCard"
 
 export default function Home() {
@@ -12,8 +12,33 @@ export default function Home() {
     setTimeout(() => { setRetryCount(prev => prev + 1); }, 3000)
   }
 
+  // 1. Создаем состояние для данных из бэкенда
+  const [metrics, setMetrics] = useState({
+    fps: 0
+  })
+  // 2. Запускаем "слушателя" при загрузке страницы
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/stats')
+        if (response.ok) {
+          const data = await response.json()
+          setMetrics(data) // Обновляем состояние данными из FastAPI
+        }
+      } catch (error) {
+        console.error("Ошибка при получении статистики:", error)
+      }
+    }
+    // Опрашиваем бэкенд каждую секунду (1000 мс)
+    const interval = setInterval(fetchStats, 1000);
+
+    // Очищаем таймер, если пользователь ушел со страницы
+    return () => clearInterval(interval)
+  }, [])
+
   // Данные, которые в будущем придут из FastAPI
   const statsData = [
+    { title: "Текущий FPS", value: metrics.fps.toFixed(1), unit: "кадр/с", icon: Activity },
     { title: "Обнаружено объектов", value: "1,284", icon: Car },
     { title: "Скорость потока", value: "64", unit: "км/ч", icon: Gauge },
     { title: "Нагрузка на GPU", value: "42", unit: "%", icon: Cpu },

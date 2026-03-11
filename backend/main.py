@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
     yield
     # ПРИ ВЫКЛЮЧЕНИИ (нажал красный квадрат):
     if hasattr(app.state, 'engine'):
-        print("освобождение ресурсов...")
+        print("освобождение ресурсов...", flush=True)
         app.state.engine.release()
 
 app = FastAPI(lifespan=lifespan)
@@ -34,6 +34,12 @@ def video_feed(request: Request):
     engine = request.app.state.engine
 
     return StreamingResponse(engine.process_run(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+@app.get("/api/stats")
+def get_stats(request: Request):
+    # Возвращаем весь словарь со статистикой
+    engine = request.app.state.engine
+    return engine.live_stats
 
 @hydra.main(version_base=None, config_path='configs', config_name='config')
 def main(config):

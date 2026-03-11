@@ -30,15 +30,18 @@ class Frame_capture:
 
     def process(self):
         while True:
-            time_stamp = time.perf_counter()
             ret, frame = self.cap.read()
             if not ret:
-                '''чтобы видео не заканчивалось на последнем кадре а крутилось по кругу'''
+                #  Перемотать на начало
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                continue
+                ret, frame = self.cap.read()
 
+                # ВТОРОЙ СЛОЙ: если ПУСТО даже после перемотки (файл поврежден или пропал)
+                if not ret:
+                    break
+
+            time_stamp = time.perf_counter()
             yield Frame(_image=frame, _time_stamp=time_stamp)
-            time.sleep(0.0001)
 
     def release(self):
         """Освобождение ресурсов."""

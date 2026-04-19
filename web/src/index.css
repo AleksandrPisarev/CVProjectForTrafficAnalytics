@@ -114,12 +114,6 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 #root {
   min-height: 100vh;
 }

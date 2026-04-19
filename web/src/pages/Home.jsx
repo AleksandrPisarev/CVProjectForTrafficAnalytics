@@ -63,7 +63,7 @@ export default function Home() {
                 {isLoaded ? 'ACTIVE_LINK' : 'CONNECTION_LOST'}
               </span>
             </div>
-            <div className="flex gap-4 opacity-60">
+            <div className="flex !gap-4 opacity-60">
               <span>30.4 FPS</span>
               <span>1080P</span>
             </div>
@@ -80,7 +80,9 @@ export default function Home() {
               {!isLoaded && (
                 <>
                   <div className="w-12 h-12 border-2 border-sky-500/20 border-t-sky-500 rounded-full animate-spin !mb-8" />
-                  <p className="font-mono text-sm font-black tracking-[0.8em] text-sky-500/60 uppercase">INITIALIZING_SIGNAL...</p>
+                  <p className="font-mono text-[11px] font-black tracking-[0.3em] text-sky-500/60 uppercase text-center leading-loose max-w-sm">
+                    Для запуска приложения необходимо авторизоваться нажмите на кнопку войти
+                  </p>
                 </>
               )}
               <img src={`http://localhost:8000/video_feed?t=${retryCount}`} alt="stream" onLoad={() => setIsLoaded(true)} onError={handleError}

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router"
 import { useState, useEffect  } from "react"
 import { Button } from "@/components/ui/button"
+import UserMenu from "./userMenu/UserMenu"
 
 const NavItem = ({ to, children }) => {
   const location = useLocation();
@@ -39,17 +40,16 @@ export default function Header() {
           <NavItem to="/" end>Главная</NavItem>
           <NavItem to="/analytics">Аналитика</NavItem>
           <NavItem to="/documents">Документы</NavItem>
-          <NavItem to="/settings">Настройки</NavItem>
         </nav>
 
         <h1 className="hidden min-[1380px]:block shrink-0 text-[0.85rem] font-medium text-white uppercase tracking-[0.25em] text-center whitespace-nowrap !px-4">
           Проект компьютерного зрения по аналитике трафика
         </h1>
-
+        <UserMenu />
         <div className="shrink-0 font-mono text-lg md:text-xl text-cyan-50/90 tabular-nums whitespace-nowrap min-w-fit text-right"> 
           Время: {now.toLocaleTimeString()}
         </div>
       </div>
     </header>
-    )
+  )
 }

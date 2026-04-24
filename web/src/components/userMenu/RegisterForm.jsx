@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { useUserStore } from "./store/useUserStore"
+import { useUserStore } from "@/store/useUserStore"
 
 export default function RegisterForm({ setMode }) {
   const { registrationCheck, confirmRegistration, generatedCode } = useUserStore()
@@ -16,31 +16,26 @@ export default function RegisterForm({ setMode }) {
         const inputCode = formData.get("userCode")
         const result = confirmRegistration(newUser, inputCode)
 
+        if (!result.success) {
+           setError("Неверный код подтверждения")
+        } 
+    }
+    else {
+         const result = registrationCheck(newUser)
+
         if (result.success) {
-            alert("Регистрация завершена! Пользователь создан.")
-            setMode("login")
+            alert(`[ИМИТАЦИЯ]: Код ${result.code} отправлен на ${newUser.email}`)
         } 
         else {
-            setError("Неверный код подтверждения")
-        }
-        return
-    }
-
-    const result = registrationCheck(newUser);
-
-    if (result.success) {
-        // Код сгенерировался (в сторе теперь не null)
-        // alert с имитацией уже сработал внутри стора
-    } 
-    else {
-        switch (result.error) {
-        case "user_exists": setError("Эта почта уже занята"); break
-        case "invalid_email": setError("Введите корректный адрес почты"); break
-        case "empty_fields": setError("Заполните все поля"); break
-        default: setError("Ошибка регистрации")
+            switch (result.error) {
+                case "user_exists": setError("Эта почта уже занята"); break
+                case "invalid_email": setError("Введите корректный адрес почты"); break
+                case "empty_fields": setError("Заполните все поля"); break
+                default: setError("Ошибка регистрации")
+            }
         }
     }
-    }
+  }
 
   return (
     <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-5">
@@ -122,10 +117,11 @@ export default function RegisterForm({ setMode }) {
                                             hover:bg-white/10 hover:border-cyan-500/50">
                 {generatedCode ? "Подтвердить" : "Регистрация"}
             </button>
-            <button type="button" onClick={() => setMode("login")} className="flex-1 py-3 rounded-xl cursor-pointer transition-all
-                                                                            bg-white/5 border border-white/10 
-                                                                            text-cyan-400 font-black text-[10px] uppercase tracking-widest
-                                                                            hover:bg-white/10 hover:border-cyan-500/50">
+            <button type="button" onClick={() => generatedCode ? useUserStore.setState({ generatedCode: null }) : setMode("login")} 
+                                  className="flex-1 py-3 rounded-xl cursor-pointer transition-all
+                                            bg-white/5 border border-white/10 
+                                            text-cyan-400 font-black text-[10px] uppercase tracking-widest
+                                            hover:bg-white/10 hover:border-cyan-500/50">
                 Назад
             </button>
         </div>

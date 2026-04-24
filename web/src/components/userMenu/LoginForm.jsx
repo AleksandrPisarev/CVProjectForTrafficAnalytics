@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { useUserStore } from "./store/useUserStore"
+import { useUserStore } from "@/store/useUserStore"
 
 export default function LoginForm({ setMode }) {
     const { login, getPasswordByEmail } = useUserStore()

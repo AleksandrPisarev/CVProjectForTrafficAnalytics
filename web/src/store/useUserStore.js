@@ -3,7 +3,7 @@ import { create } from 'zustand'
 export const useUserStore = create((set, get) => ({
   listUsers: [{email: "aleksandrpisarev555@gmail.com", password: "123", name: "Александр", surName: "Писарев", status: "admin"}],
 
-  currentUser: {name: "", surName: "", status: "operator", email: "", isAuthenticated: false,},
+  currentUser: null,
 
   generatedCode: null,
 
@@ -29,17 +29,18 @@ export const useUserStore = create((set, get) => ({
 
     const code = Math.floor(1000 + Math.random() * 9000).toString()
     set({ generatedCode: code })
-    alert(`[ИМИТАЦИЯ]: Код ${code} отправлен на ${newUser.email}`)
-    return { success: true }
+    return { success: true, code: code }
   },
 
    confirmRegistration: (newUser, inputCode) => {
       const { generatedCode } = get()
+      const { password: _, ...userWithoutPassword } = newUser
       if (inputCode === generatedCode) {
         set((state) => ({
           listUsers: [...state.listUsers, { ...newUser, status: "operator" }],
-          generatedCode: null
-        }));
+          generatedCode: null,
+          currentUser: { ...userWithoutPassword, status: "operator" }
+        }))
         return { success: true }
       }
       return { success: false }
@@ -61,21 +62,10 @@ export const useUserStore = create((set, get) => ({
     }
 
     // 3. Если всё совпало — логиним
-    set({
-      currentUser: {
-        name: thisUser.name,
-        surName: thisUser.surName,
-        status: thisUser.status,
-        email: thisUser.email,
-        isAuthenticated: true,
-      }
-    });
+    const { password: _, ...userWithoutPassword } = thisUser
+    set({ currentUser: userWithoutPassword })
     return { success: true }
   },
-
-  logout: () => set({ 
-    user: { name: "", surName: "", status: "operator", isAuthenticated: false } 
-  }),
 
   getPasswordByEmail: (email) => {
     const allUsers = get().listUsers

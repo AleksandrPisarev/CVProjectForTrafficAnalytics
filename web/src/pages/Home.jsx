@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Car, Gauge, Cpu, Activity } from "lucide-react"
 import MetricCard from "../components/MetricCard"
+import { useUserStore } from "@/store/useUserStore"
 
 export default function Home() {
+  const { currentUser } = useUserStore()
   const [isLoaded, setIsLoaded] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
 
@@ -13,11 +15,15 @@ export default function Home() {
   }
 
   // 1. Создаем состояние для данных из бэкенда
-  const [metrics, setMetrics] = useState({
-    fps: 0
-  })
+  const [metrics, setMetrics] = useState({fps: 0})
+
   // 2. Запускаем "слушателя" при загрузке страницы
   useEffect(() => {
+    if (!currentUser) {
+      setMetrics({ fps: 0 }) // Обнуляем метрики при выходе
+      setIsLoaded(false)     // Сбрасываем статус загрузки видео
+      return 
+    }
     const fetchStats = async () => {
       try {
         const response = await fetch('http://localhost:8000/api/stats')
@@ -34,18 +40,18 @@ export default function Home() {
 
     // Очищаем таймер, если пользователь ушел со страницы
     return () => clearInterval(interval)
-  }, [])
+  }, [currentUser]) // Эффект перезапустится при входе/выходе
 
   // Данные, которые в будущем придут из FastAPI
   const statsData = [
-    { title: "Текущий FPS", value: metrics.fps.toFixed(1), unit: "кадр/с", icon: Activity },
-    { title: "Обнаружено объектов", value: "1,284", icon: Car },
-    { title: "Скорость потока", value: "64", unit: "км/ч", icon: Gauge },
-    { title: "Нагрузка на GPU", value: "42", unit: "%", icon: Cpu },
+    { title: "Текущий FPS", value: currentUser ? metrics.fps.toFixed(1) : "0.0", unit: "кадр/с", icon: Activity },
+    { title: "Обнаружено объектов", value: currentUser ? "1,284" : "0", icon: Car },
+    { title: "Скорость потока", value: currentUser ? "64" : "0", unit: "км/ч", icon: Gauge },
+    { title: "Нагрузка на GPU", value: currentUser ? "42" : "0", unit: "%", icon: Cpu },
   ]
 
   // Общие стили для всех углов видоискателя
-  const cornerBase = "absolute w-5 h-5 border-sky-500/40 z-10";
+  const cornerBase = "absolute w-5 h-5 border-sky-500/40 z-10"
 
   return (
     <div className="flex flex-col lg:flex-row w-full h-[calc(100vh-70px)] !p-6 lg:!p-10 !gap-5 box-border overflow-y-auto lg:overflow-hidden scrollbar-hide">
@@ -59,8 +65,8 @@ export default function Home() {
             {/* Индикатор связи */}
             <div className="flex items-center !gap-3">
               <div className={`w-1.5 h-1.5 rounded-full ${isLoaded ? 'bg-sky-400 animate-pulse shadow-[0_0_8px_#38bdf8]' : 'bg-red-500'}`} />
-              <span className={isLoaded ? 'text-sky-400/80' : 'text-red-500/80'}>
-                {isLoaded ? 'ACTIVE_LINK' : 'CONNECTION_LOST'}
+              <span className={(isLoaded && currentUser) ? 'text-sky-400/80' : 'text-red-500/80'}>
+                {(isLoaded && currentUser) ? 'ACTIVE_LINK' : 'CONNECTION_LOST'}
               </span>
             </div>
             <div className="flex !gap-4 opacity-60">
@@ -85,8 +91,10 @@ export default function Home() {
                   </p>
                 </>
               )}
-              <img src={`http://localhost:8000/video_feed?t=${retryCount}`} alt="stream" onLoad={() => setIsLoaded(true)} onError={handleError}
+              {currentUser && (
+                <img src={`http://localhost:8000/video_feed?t=${retryCount}`} alt="stream" onLoad={() => setIsLoaded(true)} onError={handleError}
                 className={`w-full h-full object-cover transition-opacity duration-500 ${ isLoaded ? 'opacity-100' : 'opacity-0 absolute'}`}/>
+              )}
           </div>
 
           {/* НИЖНИЙ ТЕХ-ТЕКСТ */}
@@ -97,11 +105,12 @@ export default function Home() {
       </section>
 
       {/* ПРАВАЯ ЧАСТЬ: Боковая панель (Фиксированная) */}
-      <aside className="w-full lg:w-[500px] flex-shrink-0 flex flex-col !gap-5 h-full overflow-y-auto scrollbar-hide">
+      <aside className={`w-full lg:w-[500px] flex-shrink-0 flex flex-col !gap-5 h-full overflow-y-auto scrollbar-hide transition-all duration-500 ${
+        !currentUser ? "opacity-30 pointer-events-none grayscale-[50%]" : "opacity-100"}`}>
         {statsData.map((item, index) => (
           <MetricCard key={index} {...item} />
         ))}
       </aside>
     </div>
-  );
-};
+  )
+}

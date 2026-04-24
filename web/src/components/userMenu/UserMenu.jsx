@@ -1,8 +1,8 @@
 import { useState } from "react"
-import { useUserStore } from "./store/useUserStore"
+import { useUserStore } from "@/store/useUserStore"
 import LoginForm from "./LoginForm"
 import RegisterForm from "./RegisterForm"
-// import UserDashboard from "./UserDashboard"
+import UserDashboard from "./UserDashboard"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button"
 
 export default function UserMenu() {
   const { currentUser } = useUserStore()
-  const [mode, setMode] = useState("login")
+  const [mode, setMode] = useState()
 
   return (
     <TooltipProvider>
@@ -33,6 +33,7 @@ export default function UserMenu() {
                         variant="ghost" 
                         /* Сбрасываем фокус сразу после клика, чтобы следующий клик был как первый */
                         onMouseUp={(e) => e.currentTarget.blur()}
+                        onClick={() => !currentUser ? setMode("login") : null}
                         className="
                             relative flex items-center justify-center 
                             w-14 h-14 rounded-full border-none p-0
@@ -52,12 +53,12 @@ export default function UserMenu() {
                             outline-none focus:ring-0 focus:outline-none">
                         <span className={`
                                           font-black uppercase text-center leading-none transition-all duration-300
-                                          ${currentUser.isAuthenticated 
+                                          ${currentUser
                                             ? "text-xl tracking-tighter"   // Крупные буквы для инициалов
                                             : "text-[10px] tracking-widest" // Маленький шрифт для слова "Войти"
                                           }
                                         `}>
-                            {currentUser.isAuthenticated ? (user.name[0] + user.surName[0]).toUpperCase() : "Войти"}
+                            {currentUser ? (currentUser.name[0] + currentUser.surName[0]).toUpperCase() : "Войти"}
                         </span>
                     </Button>
                 </DropdownMenuTrigger>
@@ -72,14 +73,14 @@ export default function UserMenu() {
             </TooltipContent>
         </Tooltip>
 
-        <DropdownMenuContent className="w-80 p-6 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl">
-          {currentUser.isAuthenticated ? (
-             <div>Меню профиля (сделаем следующим)</div>
+        <DropdownMenuContent className="w-80 p-4 bg-[#0f172a] border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+          {currentUser ? (
+             <UserDashboard setMode={setMode} />
           ) : mode === "login" ? (
              <LoginForm setMode={setMode} /> 
-          ) : (
+          ) : mode === "register" ? (
              <RegisterForm setMode={setMode} />
-          )}
+          ) : null }
         </DropdownMenuContent>
       </DropdownMenu>
     </TooltipProvider>

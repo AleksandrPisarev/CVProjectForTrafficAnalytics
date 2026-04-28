@@ -8,7 +8,6 @@ import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 const NavItem = ({ to, children }) => {
   const location = useLocation()
   const isActive = location.pathname === to
-
   return (
     <Button asChild variant="nav" className="!p-0 h-9 shrink-0">
       <Link to={to} className={`relative flex items-center justify-center !px-5 h-full rounded-md transition-all duration-300 font-medium tracking-wide ${

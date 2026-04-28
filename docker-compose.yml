@@ -7,10 +7,11 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./backend/weights:/app/weights
     # Сигнал для мягкой остановки (Python лучше понимает SIGINT)
     stop_signal: SIGINT
     # Даем 30 секунд на очистку ресурсов перед принудительным убийством
-    stop_grace_period: 30s
+    stop_grace_period: 20s
     deploy:
       resources:
         reservations:

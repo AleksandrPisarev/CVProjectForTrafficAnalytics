@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Нейросети (веса моделей)
+weights/*.pt
+weights/*.onnx
+*.pt

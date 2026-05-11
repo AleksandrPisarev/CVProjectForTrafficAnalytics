@@ -1,10 +1,12 @@
 import React from 'react'
 import { Search, Settings, Users, LogOut } from 'lucide-react'
 import { useUserStore } from '@/store/useUserStore'
+import { useCameraStore } from '@/store/useCameraStore'
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 
 export default function UserDashboard({ setMode }) {
   const { currentUser } = useUserStore()
+  const { activeCamera } = useCameraStore()
   const isAdmin = currentUser?.status === 'admin'
 
   return (
@@ -26,15 +28,13 @@ export default function UserDashboard({ setMode }) {
         </div>
 
         <div className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-          isAdmin ? "hover:bg-white/5 cursor-pointer group" : "opacity-20"
-        }`}>
+          isAdmin ? "hover:bg-white/5 cursor-pointer group" : "opacity-20"}`}>
           <Settings size={16} className={isAdmin ? "text-slate-500 group-hover:text-cyan-400" : "text-slate-500"} />
           <span>Настройки</span>
         </div>
 
         <div className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-          isAdmin ? "hover:bg-white/5 cursor-pointer group" : "opacity-20"
-        }`}>
+          isAdmin ? "hover:bg-white/5 cursor-pointer group" : "opacity-20"}`}>
           <Users size={16} className={isAdmin ? "text-slate-500 group-hover:text-cyan-400" : "text-slate-500"} />
           <span>Пользователи</span>
         </div>
@@ -42,10 +42,10 @@ export default function UserDashboard({ setMode }) {
         {/* Оберка DropdownMenuItem нужна чтобы закрывалось меню при нажатии на кнопку выход */}
         <DropdownMenuItem 
           onClick={() => { useUserStore.setState({ currentUser: null })
+                           useCameraStore.setState({ activeCamera: [] })
                            setMode(null)
                          }}
-          className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-500/10 cursor-pointer transition-colors group"
-        >
+          className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-500/10 cursor-pointer transition-colors group">
           <LogOut size={16} className="text-slate-500 group-hover:text-red-500" />
           <span className="text-sm group-hover:text-red-500 font-medium">Выход</span>
         </DropdownMenuItem>

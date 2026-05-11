@@ -8,6 +8,7 @@ import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 const NavItem = ({ to, children }) => {
   const location = useLocation()
   const isActive = location.pathname === to
+
   return (
     <Button asChild variant="nav" className="!p-0 h-9 shrink-0">
       <Link to={to} className={`relative flex items-center justify-center !px-5 h-full rounded-md transition-all duration-300 font-medium tracking-wide ${
@@ -33,7 +34,7 @@ export default function Header() {
   return () => clearInterval(interval)}, []) // Пустые скобки [] значат "запустить только при старте"
   return(
     <header className="fixed top-0 left-0 right-0 z-50 h-[70px] w-full flex items-center justify-center 
-                      bg-[#0f172a]/60 backdrop-blur-xl border-b border-white/20 shadow-2xl !px-4 md:!px-6">
+                      bg-transparent backdrop-blur-md border-b border-white/10 shadow-none !px-4 md:!px-6">
       <div className="w-full max-w-[1440px] flex items-center justify-between gap-2">
         
         {/* МОБИЛЬНОЕ МЕНЮ (Бургер) - видно только на маленьких экранах */}
@@ -44,7 +45,7 @@ export default function Header() {
                 <Menu size={24} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48 bg-[#0f172a] border-white/20 text-white">
+            <DropdownMenuContent align="start" className="w-48 bg-black/40 backdrop-blur-xl border-white/10 text-white shadow-2xl">
               <DropdownMenuItem asChild><Link to="/">Главная</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/analytics">Аналитика</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/documents">Документы</Link></DropdownMenuItem>

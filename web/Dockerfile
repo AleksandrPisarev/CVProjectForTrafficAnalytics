@@ -5,17 +5,19 @@ RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Копируем конфиги
-COPY package.json pnpm-lock.yaml* ./
+# Копируем только файл со списком библиотек
+COPY package.json ./
 
-# Устанавливаем библиотеки в "плоском" режиме (node-linker=hoisted)
-# Это заставит pnpm создать обычную папку node_modules без хитрых ссылок
-RUN pnpm install --config.node-linker=hoisted
+# 1. Устанавливаем ВСЕ библиотеки с нуля
+RUN pnpm install
+
+# 2. Добавляем тот самый модуль для Linux, который капризничал
+RUN pnpm add @rollup/rollup-linux-x64-gnu
 
 # Копируем остальной код
 COPY . .
 
 EXPOSE 5173
 
-# Запуск с принудительной очисткой кэша Vite
-CMD ["pnpm", "dev", "--host", "--force"]
+# Запуск
+CMD ["pnpm", "dev", "--host"]

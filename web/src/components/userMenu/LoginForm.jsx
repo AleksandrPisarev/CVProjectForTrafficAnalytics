@@ -105,8 +105,7 @@ export default function LoginForm({ setMode }) {
                 className=" flex-1 py-3 rounded-xl cursor-pointer transition-all
                             bg-white/5 border border-white/10 
                             text-cyan-400 font-black text-[10px] uppercase tracking-widest
-                            hover:bg-white/10 hover:border-cyan-500/50"
-              >
+                            hover:bg-white/10 hover:border-cyan-500/50">
                 Авторизоваться
               </button>
               
@@ -116,8 +115,7 @@ export default function LoginForm({ setMode }) {
                 className=" flex-1 py-3 rounded-xl cursor-pointer transition-all
                             bg-white/5 border border-white/10 
                             text-cyan-400 font-black text-[10px] uppercase tracking-widest
-                            hover:bg-white/10 hover:border-cyan-500/50"
-              >
+                            hover:bg-white/10 hover:border-cyan-500/50">
                 Регистрация
               </button>
             </div>

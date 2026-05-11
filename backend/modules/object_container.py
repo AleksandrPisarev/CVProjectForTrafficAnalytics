@@ -13,14 +13,16 @@ class Object_container:
 
         # Очереди с размером 1 (всегда храним только самый свежий кадр)
         self.capture_queue = Queue(maxsize=1)  # Сырой кадр от камеры/файла
-        self.pipeline_queue = Queue(maxsize=1)  # Отрисованный JPEG для стрима
+        self.detection_queue = Queue(maxsize=1)
+        self.rendering_queue = Queue(maxsize=1)
 
         self.live_stats = {"fps": 0}  # Данные данного кадра для React
         self.is_running = True
 
         # ЗАПУСК ПОТОКОВ
         threading.Thread(target=self._flow_capture, daemon=True).start()
-        threading.Thread(target=self._flow_pipeline, daemon=True).start()
+        threading.Thread(target=self._flow_detection, daemon=True).start()
+        threading.Thread(target=self._flow_rendering, daemon=True).start()
 
     def _flow_capture(self):
         for obj_frame in self.capture.process():
@@ -37,30 +39,48 @@ class Object_container:
 
             self.capture_queue.put(obj_frame)
 
-    def _flow_pipeline(self):
+    def _flow_detection(self):
         while self.is_running:
             try:
                 # Ждем кадр 1 сек, чтобы иметь возможность проверить self.is_running
                 frame_obj = self.capture_queue.get(timeout=1.0)
 
-                if frame_obj is None:
-                    break
+                if frame_obj is None: break
 
                 # Детекция и трекинг
                 # Передаем весь объект Frame, получаем его же (обновленным) и данные детекции
                 frame_obj = self.detection.process(frame_obj)
+
+                # Кладем в очередь
+                if self.detection_queue.full():
+                    try:
+                        self.detection_queue.get_nowait()
+                    except Empty:
+                        pass
+                self.detection_queue.put(frame_obj)
+
+            except Empty:
+                continue
+
+    def _flow_rendering(self):
+        while self.is_running:
+            try:
+                # Ждем кадр 1 сек, чтобы иметь возможность проверить self.is_running
+                frame_obj = self.detection_queue.get(timeout=1.0)
+
+                if frame_obj is None: break
 
                 # Рендеринг
                 _, encoded_frame = self.rendering.process(frame_obj)
                 self.live_stats["fps"] = self.rendering.FPS
 
                 # Кладем в очередь для MJPEG
-                if self.pipeline_queue.full():
+                if self.rendering_queue.full():
                     try:
-                        self.pipeline_queue.get_nowait()
+                        self.rendering_queue.get_nowait()
                     except Empty:
                         pass
-                self.pipeline_queue.put(encoded_frame)
+                self.rendering_queue.put(encoded_frame)
 
             except Empty:
                 continue
@@ -69,7 +89,7 @@ class Object_container:
         while self.is_running:
             try:
                 # Ждем кадр не вечно, а например 1 секунду
-                buffer = self.pipeline_queue.get(timeout=1.0)
+                buffer = self.rendering_queue.get(timeout=1.0)
                 if buffer is None:
                     break
                 yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
@@ -84,7 +104,8 @@ class Object_container:
 
         try:
             self.capture_queue.put_nowait(None)
-            self.pipeline_queue.put_nowait(None)
+            self.detection_queue.put_nowait(None)
+            self.rendering_queue.put_nowait(None)
         except:
             pass
 

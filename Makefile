@@ -1,7 +1,7 @@
 # Собрать и запустить всё (web + api), сразу удалив старые слои образов
 up:
-	docker-compose up --build
 	docker system prune -a -f
+	docker-compose up --build
 
 # Просто запуск без пересборки (если библиотеки не менялись)
 run:

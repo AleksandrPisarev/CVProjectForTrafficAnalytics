@@ -7,10 +7,11 @@ class DetectionTracking:
     def __init__(self, config):
         self.model = YOLO(config['model_path'], task='detect')
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model.to(self.device)
+        # Нужно для версии yolov8m.pt для версии yolov8m.onnx self.model.to(self.device) закоментировать
+        # self.model.to(self.device)
         self.conf = config.get('conf', 0.4)
         self.classes = list(config.get('classes', [2, 3, 5, 7]))
-        self.tracking = config.get('tracking', "botsort.yaml")
+        self.tracking = config['tracking']
         self.track_buffer = config.get('track_buffer', 60)
 
     def process(self, frame_obj: Frame):
@@ -19,25 +20,20 @@ class DetectionTracking:
         # Используем параметры, которые мы сохранили в __init__
         results = self.model.track(
             source=frame_obj.image,
+            imgsz=640,
             persist=True,  # Заставляет систему помнить объекты между кадрами
             conf=self.conf,  # Порог уверенности
             device=self.device,  # видеокарта или процессор
             classes=self.classes,  # [2, 3, 5, 7]
-            tracker=self.tracking,  # "botsort.yaml"
+            tracker=self.tracking,  # "botsort.yaml или bytetrack.yaml"
+            stream=True, # Работает как генератор
             verbose=False  # Не спамим в консолье
         )
 
-        # 2. Проверяем, есть ли результаты
-        # results — это список, нам нужен первый (и единственный) элемент
-        if results and len(results) > 0:
+        for result in results:
+            # Сопоставляем результат с соответствующим объектом кадра
+            frame_obj.image = self.__draw_bboxes(result)
 
-            # 3. Отрисовываем всё на кадре
-            frame_obj.image = self.__draw_bboxes(results[0])
-
-            # Возвращаем готовый кадр и сами результаты (пригодятся для статистики)
-            return frame_obj
-
-        # Если вдруг что-то пошло не так, возвращаем оригинальный кадр
         return frame_obj
 
     def __draw_bboxes(self, res):
@@ -68,7 +64,7 @@ class DetectionTracking:
                 color = CLASS_COLORS.get(cls_index, DEFAULT_COLOR)
 
                 # Формируем текст в формате "car:244"
-                label = f"{class_name}:{obj_id}"
+                label = f"{class_name}:{obj_id % 1000}..."
 
                 # Настройки текста
                 font = cv2.FONT_HERSHEY_SIMPLEX

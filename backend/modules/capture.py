@@ -46,4 +46,4 @@ class Frame_capture:
     def release(self):
         """Освобождение ресурсов."""
         self.cap.release()
-        cv2.destroyAllWindows()
+        # cv2.destroyAllWindows()

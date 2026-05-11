@@ -1,26 +1,29 @@
-# Базовый образ NVIDIA
-FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04
 
-# Исправляем проблему с репозиториями и ставим Python
-# Мы не пишем 3.10, а пишем просто python3, чтобы система сама выбрала доступный
+# Убираем интерактивные запросы при установке
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update --fix-missing && apt-get install -y \
     python3 \
     python3-pip \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    build-essential \
+    python3-dev \
+    # Добавляем для psycopg2 и сборки расширений
+    libpq-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Создаем ссылку, чтобы команда python работала
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 WORKDIR /app
 
-# Копируем и ставим зависимости
+# Сначала копируем только requirements, чтобы не пересобирать слои при изменении кода
 COPY requirements.txt .
 
-# Используем pip3 явно
-RUN pip3 install --no-cache-dir --upgrade pip && \
+# Ставим зависимости. ВАЖНО: сначала pip, потом остальное
+RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
     pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .

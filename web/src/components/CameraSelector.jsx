@@ -18,10 +18,10 @@ export default function CameraSelector() {
       <Carousel opts={{ align: "start", loop: true }} className="w-full">
         <CarouselContent className="-ml-2">
           {cameras.map((item) => (
-            <CarouselItem key={item.id} className="pl-2 basis-1/2 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-              <Card onClick={() => setActiveCamera(item.id)}
+            <CarouselItem key={item.ip} className="pl-2 basis-1/2 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+              <Card onClick={() => setActiveCamera(item.ip)}
                     className={`border-white/10 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all cursor-pointer group
-                                ${activeCamera.includes(item.id) ? 'border-sky-500 bg-sky-500/10' : ''}`}>
+                                ${activeCamera.includes(item.ip) ? 'border-sky-500 bg-sky-500/10' : ''}`}>
                 <CardContent className="p-2 flex items-center gap-3">
                   {/* Мини-иконка */}
                   <div className="w-8 h-8 rounded bg-sky-500/10 flex items-center justify-center flex-shrink-0 group-hover:bg-sky-500/20">
@@ -32,10 +32,13 @@ export default function CameraSelector() {
                     <p className="text-[11px] font-mono text-white/90 truncate uppercase tracking-tight">
                       {item.name}
                     </p>
+                    <p className="text-[8px] font-mono text-sky-500/50 truncate tracking-tighter mb-1">
+                      IP: {item.ip}
+                    </p>
                     <div className="flex items-center gap-1">
-                      <div className={`w-1 h-1 rounded-full ${item.status === 'online' ? 'bg-sky-400 shadow-[0_0_4px_#38bdf8]' : 'bg-red-500'}`} />
+                      <div className={`w-1 h-1 rounded-full ${activeCamera.includes(item.ip) ? 'bg-sky-400 shadow-[0_0_4px_#38bdf8]' : 'bg-red-500'}`} />
                       <span className="text-[8px] font-mono text-white/30 uppercase">
-                        {item.status}
+                        {activeCamera.includes(item.ip) ? 'active' : 'idle'}
                       </span>
                     </div>
                   </div>

@@ -57,14 +57,22 @@ export default function Home() {
 
   return (
     <div className={`"flex flex-col w-full min-h-[calc(100vh-70px)] lg:h-[calc(100vh-70px)] bg-transparent overflow-y-auto lg:overflow-hidden scrollbar-hide" ${!currentUser ? "opacity-60 pointer-events-none grayscale-[50%]" : "opacity-100"}`}>
-        <div className="flex items-center w-full px-2 lg:px-4 gap-2">
-          {/* Кнопка "Добавить" */}
+
+      <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center w-full px-2 lg:px-4 gap-4 md:gap-2">
+  
+        {/* Обертка кнопки "Добавить". На телефоне она займет всю ширину (w-full). */}
+        {/* На ПК (md:) ширина станет автоматической под размер самой кнопки (md:w-auto). */}
+        <div className="w-full md:w-auto flex-shrink-0">
           <AddCamera />
-          {/* Обертка для карусели камер */}
-          <div className="flex-1 min-w-0">
-            <CameraSelector />
-          </div>
         </div>
+
+        {/* Обертка для карусели камер. flex-1 заставит её занять всё оставшееся место на ПК. */}
+        <div className="flex-1 min-w-0 w-full">
+          <CameraSelector />
+        </div>
+
+      </div>
+      
       <div className="flex flex-col lg:flex-row w-full flex-1 !px-2 lg:!px-4 !pb-6 lg:!pb-10 !pt-2 !gap-3 min-h-0 overflow-hidden">
         {/* ЛЕВАЯ ЧАСТЬ: Видео (Растягивается) */}
         <section className="flex-none lg:flex-1 flex justify-center items-start min-w-0 min-h-0">

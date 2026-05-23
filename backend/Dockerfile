@@ -12,6 +12,7 @@ RUN apt-get update --fix-missing && apt-get install -y \
     python3-dev \
     # Добавляем для psycopg2 и сборки расширений
     libpq-dev \
+    ffmpeg \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

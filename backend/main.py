@@ -1,10 +1,10 @@
 import hydra
 import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from modules.object_container import Object_container
 from contextlib import asynccontextmanager
+from routers import camera_router, stream_router
 
 '''освобождает ресурсы при остановки сервера'''
 @asynccontextmanager
@@ -28,18 +28,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/video_feed")
-def video_feed(request: Request):
-    # Достаем наш "объект" из состояния приложения
-    engine = request.app.state.engine
+app.include_router(camera_router.router)
+app.include_router(stream_router.router)
 
-    return StreamingResponse(engine.process_run(), media_type="multipart/x-mixed-replace; boundary=frame")
-
-@app.get("/api/stats")
-def get_stats(request: Request):
-    # Возвращаем весь словарь со статистикой
-    engine = request.app.state.engine
-    return engine.live_stats
 
 @hydra.main(version_base=None, config_path='configs', config_name='config')
 def main(config):

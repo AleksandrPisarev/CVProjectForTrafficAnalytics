@@ -28,8 +28,18 @@ class Frame_capture:
                 f"Ожидался существующий файл или ID камеры (int) или URL."
             )
 
+    # функция замедляющая чтение кадров из файла имитирующаю поток из камеры
+    def __apply_camera_fps(self, start_time):
+        TARGET_FPS = 50
+        FRAME_TIME = 1.0 / TARGET_FPS
+        elapsed = time.time() - start_time
+        sleep_time = FRAME_TIME - elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+
     def process(self):
         while True:
+            start_time = time.time()
             ret, frame = self.cap.read()
             if not ret:
                 # Проверяем тип источника: это сетевой стрим или файл?
@@ -46,6 +56,9 @@ class Frame_capture:
                     ret, frame = self.cap.read()
                     if not ret:
                         break  # Если файл поврежден, выходим из цикла
+
+            if not (isinstance(self.video_source, str) and "://" in self.video_source):
+                self.__apply_camera_fps(start_time)
 
             time_stamp = time.perf_counter()
             yield Frame(_image=frame, _time_stamp=time_stamp)

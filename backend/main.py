@@ -2,20 +2,19 @@ import hydra
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from modules.object_container import Object_container
+from modules.session_manager import SessionManager
 from contextlib import asynccontextmanager
 from routers import camera_router, stream_router
 
 '''освобождает ресурсы при остановки сервера'''
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ПРИ СТАРТЕ: Здесь можно ничего не писать,
-    # так как я создаю engine позже в main(config)
+    # ПРИ СТАРТЕ: Ничего не пишем, менеджер создается в main(config)
     yield
-    # ПРИ ВЫКЛЮЧЕНИИ (нажал красный квадрат):
-    if hasattr(app.state, 'engine'):
-        print("освобождение ресурсов...", flush=True)
-        app.state.engine.release()
+    # ПРИ ВЫКЛЮЧЕНИИ:
+    if hasattr(app.state, 'manager'):
+        print("Освобождение ресурсов всех камер...", flush=True)
+        app.state.manager.release_all()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -34,7 +33,7 @@ app.include_router(stream_router.router)
 
 @hydra.main(version_base=None, config_path='configs', config_name='config')
 def main(config):
-    app.state.engine = Object_container(config)
+    app.state.manager = SessionManager(config)
     # Запускаем сервер Uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 

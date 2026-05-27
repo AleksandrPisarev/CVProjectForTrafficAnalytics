@@ -4,15 +4,6 @@ from modules.camera_manager import camera_manager
 
 router = APIRouter(prefix="/api/v1/cameras", tags=["cameras"])
 
-# СХЕМА ДАННЫХ (Pydantic модель для ввода RTSP)
-class ConnectRtspFormRequest(BaseModel):
-    name: str
-    brand: str
-    ip: str
-    username: str
-    password: str
-    rtsp_tail: str
-
 # Эндпоинт поиска подсети
 @router.get("/subnet")
 async def subnet_diagnosis():
@@ -23,10 +14,19 @@ async def subnet_diagnosis():
         "free_ips": free_ips
     }
 
+# СХЕМА ДАННЫХ (Pydantic модель для ввода RTSP)
+class ConnectRtspFormRequest(BaseModel):
+    name: str
+    brand: str
+    ip: str
+    username: str
+    password: str
+    rtsp_tail: str
+
 # Эндпоинт подключения камеры
 @router.post("/connect")
 async def connect_rtsp_camera(data: ConnectRtspFormRequest, request: Request):
-    engine = request.app.state.engine
+    manager = request.app.state.manager
     payload = data.model_dump()
 
     result = await camera_manager.check_camera(payload)
@@ -34,8 +34,27 @@ async def connect_rtsp_camera(data: ConnectRtspFormRequest, request: Request):
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["error"])
 
-    # Если видео запустилось, отдаем ссылку в ваш Object_container
-    engine.start_capture(result["url"])
+    try:
+        manager.create_session(result["url"], data.ip)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    # Фронтенду возвращаем просто подтверждение успеха
     return {"status": "ok"}
+
+
+class DisconnectCameraRequest(BaseModel):
+    ip: str
+
+
+@router.post("/disconnect")
+async def disconnect_camera(data: DisconnectCameraRequest, request: Request):
+    manager = request.app.state.manager
+
+    # Проверяем, запущена ли вообще такая сессия
+    if data.ip in manager.sessions:
+        # Вызываем твою функцию закрытия сессии (например, close_session или stop_session)
+        # Подставь сюда реальное имя метода из твоего Manager
+        manager.stop_session(data.ip)
+        return {"status": "ok"}
+
+    raise HTTPException(status_code=404, detail="Сессия для данной камеры не найдена")

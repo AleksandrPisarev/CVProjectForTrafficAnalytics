@@ -1,7 +1,6 @@
 from ultralytics import YOLO
 import torch
 import cv2
-from modules.frame import Frame
 
 class DetectionTracking:
     def __init__(self, config):
@@ -14,27 +13,48 @@ class DetectionTracking:
         self.tracking = config['tracking']
         self.track_buffer = config.get('track_buffer', 60)
 
-    def process(self, frame_obj: Frame):
+    def process_batch(self, images_list: list, camera_ids: list) -> list:
+        """
+        Принимает пачку картинок и пачку ID.
+        Возвращает список обработанных изображений в том же порядке.
+        """
+        if not images_list:
+            return []
 
-        # 1. Прогоняем через нейросеть с трекером
-        # Используем параметры, которые мы сохранили в __init__
+        # Превращаем IP-адреса в уникальные числа для изоляции трекеров внутри YOLO
+        stream_indices = [abs(hash(cid)) for cid in camera_ids]
+
+        # Прогоняем всю пачку картинок через YOLO одним разом
         results = self.model.track(
-            source=frame_obj.image,
+            source=images_list,  # Передаем список матриц OpenCV
             imgsz=640,
-            persist=True,  # Заставляет систему помнить объекты между кадрами
-            conf=self.conf,  # Порог уверенности
-            device=self.device,  # видеокарта или процессор
-            classes=self.classes,  # [2, 3, 5, 7]
-            tracker=self.tracking,  # "botsort.yaml или bytetrack.yaml"
-            stream=True, # Работает как генератор
-            verbose=False  # Не спамим в консолье
+            persist=True,
+            conf=self.conf,
+            device=self.device,
+            classes=self.classes,
+            tracker=self.tracking,
+            stream=True,  # Генератор возвращает результаты поочередно
+            verbose=False,
+            stream_id=stream_indices  # Изолирует историю треков для каждого потока
         )
 
-        for result in results:
-            # Сопоставляем результат с соответствующим объектом кадра
-            frame_obj.image = self.__draw_bboxes(result)
+        processed_images = []
+        objects_counts = []  # Список для хранения количества авто на каждой камере
 
-        return frame_obj
+        # Проходим по результатам (YOLO возвращает их строго в порядке подачи на вход)
+        for result in results:
+            # Отрисовываем рамки вашей оригинальной функцией
+            img_with_boxes = self.__draw_bboxes(result)
+            processed_images.append(img_with_boxes)
+
+            # 2. Считаем количество обнаруженных авто на этом кадре
+            if result.boxes is not None:
+                count = len(result.boxes)
+            else:
+                count = 0
+            objects_counts.append(count)
+
+        return processed_images, objects_counts
 
     def __draw_bboxes(self, res):
         # 1. Задаем словарь цветов для классов (BGR формат)

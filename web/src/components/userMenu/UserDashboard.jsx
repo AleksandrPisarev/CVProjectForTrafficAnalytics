@@ -9,6 +9,33 @@ export default function UserDashboard({ setMode }) {
   const { activeCamera } = useCameraStore()
   const isAdmin = currentUser?.status === 'admin'
 
+  const handleLogout = async () => {
+    try {
+      // Отправляем POST запрос-команду на бэкенд без тела (body), 
+      // чтобы сервер затушил все 12 потоков детекции
+      await fetch('http://localhost:8000/api/v1/cameras/stop-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+    } catch (error) {
+      console.error("Не удалось остановить камеры на сервере:", error)
+    } finally {
+      // Блок finally выполнится ВСЕГДА (даже если сервер выключен или сеть упала).
+      // Это гарантирует, что пользователь в любом случае выйдет из системы интерфейса.
+      
+      // Сбрасываем пользователя
+      useUserStore.setState({ currentUser: null })
+      
+      // Очищаем хранилище камер через setState 
+      useCameraStore.setState({ activeCamera: [] })
+      
+      // Закрываем режим дашборда
+      setMode(null)
+    }
+  }
+
   return (
     <div className="flex flex-col text-slate-300">
       {/* Шапка меню */}
@@ -41,10 +68,7 @@ export default function UserDashboard({ setMode }) {
 
         {/* Оберка DropdownMenuItem нужна чтобы закрывалось меню при нажатии на кнопку выход */}
         <DropdownMenuItem 
-          onClick={() => { useUserStore.setState({ currentUser: null })
-                           useCameraStore.setState({ activeCamera: [] })
-                           setMode(null)
-                         }}
+          onClick={handleLogout}
           className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-500/10 cursor-pointer transition-colors group">
           <LogOut size={16} className="text-slate-500 group-hover:text-red-500" />
           <span className="text-sm group-hover:text-red-500 font-medium">Выход</span>

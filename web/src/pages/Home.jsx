@@ -54,7 +54,7 @@ export default function Home() {
         <div className="w-full md:w-auto flex-shrink-0">
           <AddCamera />
         </div>
-        <div className="flex-1 min-w-0 w-full">
+        <div className="w-full md:w-auto md:max-w-[680px] flex-1 min-w-0">
           <CameraSelector />
         </div>
       </div>

@@ -32,19 +32,19 @@ export const useUserStore = create((set, get) => ({
     return { success: true, code: code }
   },
 
-   confirmRegistration: (newUser, inputCode) => {
-      const { generatedCode } = get()
-      const { password: _, ...userWithoutPassword } = newUser
-      if (inputCode === generatedCode) {
-        set((state) => ({
-          listUsers: [...state.listUsers, { ...newUser, status: "operator" }],
-          generatedCode: null,
-          currentUser: { ...userWithoutPassword, status: "operator" }
-        }))
-        return { success: true }
-      }
-      return { success: false }
-    },
+  confirmRegistration: (newUser, inputCode) => {
+    const { generatedCode } = get()
+    const { password: _, ...userWithoutPassword } = newUser
+    if (inputCode === generatedCode) {
+      set((state) => ({
+        listUsers: [...state.listUsers, { ...newUser, status: "operator" }],
+        generatedCode: null,
+        currentUser: { ...userWithoutPassword, status: "operator" }
+      }))
+       return { success: true }
+    }
+    return { success: false }
+  },
 
   login: (email, password) => {
     const allUsers = get().listUsers

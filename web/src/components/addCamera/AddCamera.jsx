@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { Plus, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import RtspForm from '@/components/addCamera/RtspForm'
+import Forms from "./Forms"
 
 export default function AddCamera() {
   const [isOpen, setIsOpen] = useState(false)
@@ -64,7 +64,7 @@ export default function AddCamera() {
         {/* 2. СОСТОЯНИЕ ГОТОВОЙ ФОРМЫ */}
         {step === 'form' && (
           <div className="animate-in fade-in duration-300">
-            <RtspForm 
+            <Forms 
               netData={netData} 
               onSuccess={() => setIsOpen(false)} 
             />

@@ -28,37 +28,41 @@ class Frame_capture:
                 f"Ожидался существующий файл или ID камеры (int) или URL."
             )
 
-    # функция замедляющая чтение кадров из файла имитирующаю поток из камеры
-    def __apply_camera_fps(self, start_time):
-        TARGET_FPS = 50
-        FRAME_TIME = 1.0 / TARGET_FPS
-        elapsed = time.time() - start_time
-        sleep_time = FRAME_TIME - elapsed
-        if sleep_time > 0:
-            time.sleep(sleep_time)
-
     def process(self):
         while True:
-            start_time = time.time()
-            ret, frame = self.cap.read()
-            if not ret:
-                # Проверяем тип источника: это сетевой стрим или файл?
+            try:
+                # Безопасно проверяем, открыт ли захват, перед чтением
+                if self.cap is not None and self.cap.isOpened():
+                    ret, frame = self.cap.read()
+                else:
+                    ret, frame = False, None
+            except Exception as e:
+                # Сюда прилетит C++ исключение OpenCV в момент нажатия кнопки "Выключить"
+                print(f"[Capture Error] Поток чтения прерван при закрытии сессии: {e}")
+                break  # Мгновенно выходим из цикла, не запуская реконнекты!
+
+            if not ret or frame is None:
+                # СЦЕНАРИЙ ДЛЯ IP-КАМЕРЫ: Сеть моргнула, пропало питание или перезагрузка
                 if isinstance(self.video_source, str) and "://" in self.video_source:
-                    # СЦЕНАРИЙ ДЛЯ IP-КАМЕРЫ: Сеть моргнула, пропало питание или перезагрузка
                     print(f"[Capture Warning] Потерян поток. Реконнект к {self.video_source} через 3 сек...")
-                    self.cap.release()
-                    time.sleep(3.0)
-                    self.cap = cv2.VideoCapture(self.video_source)
+
+                    try:
+                        self.cap.release()
+                        time.sleep(3.0)
+                        self.cap = cv2.VideoCapture(self.video_source)
+                    except Exception as e:
+                        print(f"[Capture Error] Ошибка при попытке реконнекта: {e}")
+                        break
                     continue
                 else:
                     # СЦЕНАРИЙ ДЛЯ ТЕСТОВОГО ФАЙЛА .mp4: Перемотать на начало
-                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                    ret, frame = self.cap.read()
-                    if not ret:
-                        break  # Если файл поврежден, выходим из цикла
-
-            if not (isinstance(self.video_source, str) and "://" in self.video_source):
-                self.__apply_camera_fps(start_time)
+                    try:
+                        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret, frame = self.cap.read()
+                        if not ret or frame is None:
+                            break  # Если файл поврежден, выходим из цикла
+                    except Exception:
+                        break
 
             time_stamp = time.perf_counter()
             yield Frame(_image=frame, _time_stamp=time_stamp)

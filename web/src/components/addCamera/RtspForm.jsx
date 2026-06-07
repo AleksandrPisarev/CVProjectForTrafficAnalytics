@@ -171,27 +171,28 @@ export default function RtspForm({ netData, onSuccess }) {
           <label className="text-white/40 uppercase tracking-wider block text-[10px]">IP-адрес *</label>
           
           <IMaskInput
-            mask="000.000.000.000" // Точки стоят намертво, внутри только цифры
-            lazy={false}           // Точки и знаки подчеркивания видны сразу: ___.___.___.___
-            placeholderChar="_"    // Показывать прочерк там, где еще нет цифры
-            name="ip"
-            required
-            value={formData.ip}
-            disabled={isLoading}
-            
-            // Вызывается при каждом вводе цифры
-            onAccept={(value) => {
-              setFormData((prev) => ({ ...prev, ip: value }));
-            }}
-            
-            // Жесткая проверка: не дает написать число больше 255
-            validate={(value) => {
-              // value здесь имеет вид "192.168._._" или "256.___..."
-              // Очищаем от знаков подчеркивания и разбиваем по точкам
-              const parts = value.replace(/_/g, "").split(".");
-              // Если хоть одно число больше 255, маска заблокирует нажатие клавиши
-              return parts.every(part => part === "" || parseInt(part, 10) <= 255);
-            }}
+             // Разрешаем вводить только цифры и точки
+              mask={/^[0-9.]*$/} 
+              name="ip"
+              required
+              value={formData.ip}
+              disabled={isLoading}
+              placeholder="192.168.68.170"
+              
+              onAccept={(value) => {
+                // На бэкенд улетит чистая строка, которую ввели (например, "192.168.68.170")
+                setFormData((prev) => ({ ...prev, ip: value }))
+              }}
+              
+              validate={(value) => {
+                // 1. Проверяем, чтобы точек было не больше 3
+                const dotCount = (value.match(/\./g) || []).length;
+                if (dotCount > 3) return false;
+
+                // 2. Ваша надежная проверка, чтобы ни одно число не было больше 255
+                const parts = value.split(".");
+                return parts.every(part => part === "" || parseInt(part, 10) <= 255);
+              }}
             
             className="w-full h-9 bg-slate-950/80 border border-white/10 rounded-xl px-3 text-white placeholder:text-white/20 outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/30 transition-all text-base font-mono"
           />

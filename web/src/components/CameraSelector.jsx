@@ -1,4 +1,4 @@
-import React from "react"
+import { useState } from 'react'
 import { Camera } from "lucide-react"
 import { useCameraStore } from "@/store/useCameraStore"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,9 +12,9 @@ import {
 
 export default function CameraSelector() {
   const { cameras, activeCamera, setActiveCamera } = useCameraStore()
-  const [error, setError] = useState(null) // Локальная ошибка чисто для карусели
+  const [error, setError] = useState(null) 
 
-  // Твоя функция управления процессами бэкенда при клике
+  // Функция управления процессами бэкенда при клике
   const handleCameraClick = async (item) => {
     setError(null) // Сбрасываем старую ошибку
     const isExist = activeCamera.includes(item.ip)
@@ -37,37 +37,46 @@ export default function CameraSelector() {
         setError("Нет связи с сервером")
       }
     } else {
-      // 2. Если камеру включают — сначала проверяем лимит на фронтенде
-      if (activeCamera.length >= 4) {
-        setError("Нельзя активировать более 4 камер одновременно")
-        return
-      }
-
-      // 3. Отправляем запрос на запуск сессии на бэкенд
-      try {
-        const response = await fetch('http://localhost:8000/api/v1/cameras/connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: item.name,
-            brand: item.brand,
-            ip: item.ip,
-            username: item.username,
-            password: item.password,
-            rtsp_tail: item.rtsp_tail
-          })
-        })
-
-        if (response.ok) {
-          setActiveCamera(item.ip) // Добавляем в активные только после успешного старта на бэкенде
-        } else {
-          const errData = await response.json()
-          setError(errData.detail || "Не удалось запустить трансляцию")
+        // 2. Если камеру включают — сначала проверяем лимит на фронтенде
+        if (activeCamera.length >= 4) {
+          setError("Нельзя активировать более 4 камер одновременно")
+          return
         }
-      } catch (err) {
-        setError("Нет связи с сервером")
+        try {
+          let response
+          if (item.ip.includes("demo")) {
+            response = await fetch('http://localhost:8000/api/v1/cameras/demo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: item.name,
+                ip: item.ip
+              })
+            })
+          } else {
+            response = await fetch('http://localhost:8000/api/v1/cameras/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: item.name,
+              brand: item.brand,
+              ip: item.ip,
+              username: item.username,
+              password: item.password,
+              rtsp_tail: item.rtsp_tail
+            })
+          })
+          }
+          if (response.ok) {
+            setActiveCamera(item.ip) // Добавляем в активные только после успешного старта на бэкенде
+          } else {
+            const errData = await response.json()
+            setError(errData.detail || "Не удалось запустить трансляцию")
+          }
+        } catch (err) {
+          setError("Нет связи с сервером")
+        }
       }
-    }
   }
 
   return (
@@ -80,13 +89,13 @@ export default function CameraSelector() {
         </div>
       )}
 
-      <Carousel opts={{ align: "start", loop: true }} className="w-full">
+      <Carousel opts={{ align: "start", loop: true }} className="w-full md:px-10 relative">
         <CarouselContent className="-ml-2">
           {cameras.map((item) => (
-            <CarouselItem key={item.ip} className="pl-2 basis-1/2 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+            <CarouselItem key={item.ip} className="pl-2 basis-1/2 md:basis-auto md:w-48 flex-shrink-0">
               {/* По твоему плану: вызываем нашу функцию и передаем весь объект item */}
               <Card onClick={() => handleCameraClick(item)}
-                    className={`border-white/10 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all cursor-pointer group
+                    className={`h-[52px] w-full border-white/10 bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all cursor-pointer group select-none
                                 ${activeCamera.includes(item.ip) ? 'border-sky-500 bg-sky-500/10' : ''}`}>
                 <CardContent className="p-2 flex items-center gap-3">
                   <div className="w-8 h-8 rounded bg-sky-500/10 flex items-center justify-center flex-shrink-0 group-hover:bg-sky-500/20">

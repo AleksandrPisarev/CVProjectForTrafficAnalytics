@@ -1,5 +1,6 @@
 import cv2
 from collections import deque
+import numpy as np
 from modules.frame import Frame
 
 class Rendering:
@@ -8,68 +9,90 @@ class Rendering:
         '''Очередь для хранения меток времени последних  maxlen кадров'''
         self.frame_times = deque(maxlen=config['fps_buffer_size'])
         self.FPS = 0
+        self.auto_count = 0
 
     def process(self, frame: Frame):
         '''Подсчет FPS'''
         self.frame_times.append(frame.time_stamp)
         if len(self.frame_times) > 1:
             total_time = self.frame_times[-1] - self.frame_times[0]
-            self.FPS = (len(self.frame_times) - 1) / total_time
-        '''Функция прорисовки FPS'''
-        # self.__draw_fps_label(frame.image, self.FPS)
+            if total_time > 0:
+                self.FPS = (len(self.frame_times) - 1) / total_time
+            else:
+                self.FPS = 0.0
 
-        '''Функция изменеия размеров окна изображения'''
-        resizing_frame_image = self.__resized_window(frame.image, self.config['width'], self.config['height'])
+        if frame.yolo_result is not None:
+            self.auto_count = len(frame.yolo_result)
+        else:
+            self.auto_count = 0
 
-        # Сжимаем кадр в jpg (чтобы передавать быстрее) и возвращаем в Object_container
-        return cv2.imencode('.jpg', resizing_frame_image)
+        annotated_image = self.__draw_bboxes(frame.image, frame.yolo_result)
 
-    def __draw_fps_label(self, frame, FPS):
-        '''Настройки шрифта и текста'''
-        text = f"FPS: {FPS:.1f}"
-        font = cv2.FONT_HERSHEY_PLAIN
-        font_scale = 0.7
-        thickness = 1
-        color_text = (255, 255, 255)
-        color_bg = (0, 0, 0)
+        # Возвращаем готовую размеченную картинку в виде сырого массива пикселей
+        return annotated_image
 
-        '''Вычисляем размер текста, чтобы прямоугольник подходил по размеру'''
-        (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+    def __draw_bboxes(self, image_raw, res) -> np.ndarray:
+        """Отрисовка рамок YOLO поверх переданного изображения"""
+        # Если для этого кадра детекции не было (пропущенный такт) или yolo упало —
+        # возвращаем оригинальную чистую картинку без изменений
+        if res is None:
+            return image_raw
 
-        '''Задаем координаты прямоугольника (верхний левый угол)'''
-        x, y = 100, 100
+        # Настройки цветов для классов (BGR формат)
+        # 2: car, 3: motorcycle, 5: bus, 7: truck
+        CLASS_COLORS = {
+            2: (0, 255, 0),  # Зеленый для легковых
+            3: (255, 255, 0),  # Циан/Голубой для мотоциклов
+            5: (0, 165, 255),  # Оранжевый для автобусов
+            7: (0, 0, 255),  # Красный для грузовиков
+        }
+        DEFAULT_COLOR = (255, 255, 255)
 
-        '''Рисуем черный прямоугольник'''
-        cv2.rectangle(frame, (x, y), (x + text_width + 2, y + text_height + baseline), color_bg, -1)
+        # Делаем копию текущей картинки кадра для безопасного рисования
+        img = image_raw.copy()
 
-        '''Рисуем белый текст поверх прямоугольника'''
-        '''Координата y в putText — это линия шрифта (baseline), поэтому добавляем высоту'''
-        cv2.putText(frame, text, (x + 2, y + text_height + 2), font, font_scale, color_text, thickness, cv2.LINE_AA)
+        if res.boxes is not None and res.boxes.id is not None:
+            boxes = res.boxes.xyxy.int().cpu().tolist()
+            ids = res.boxes.id.int().cpu().tolist()
+            clss = res.boxes.cls.int().cpu().tolist()
 
-    def  __resized_window(self, frame, width, height):
-        '''Функция помошник преобразует строковые значени из .yaml файла в числовые'''
-        width = self.__change_yaml_value(width)
-        height = self.__change_yaml_value(height)
+            for box, obj_id, cls_index in zip(boxes, ids, clss):
+                x1, y1, x2, y2 = box
 
-        '''Если размеры не указаны, возвращаем оригинал'''
-        if width is None and height is None:
-            return frame
+                class_name = res.names[cls_index]
+                color = CLASS_COLORS.get(cls_index, DEFAULT_COLOR)
 
-        h, w = frame.shape[:2]
+                # Формируем текст в формате "car:244"
+                label = f"{class_name}:{obj_id % 1000}..."
 
-        '''Если один из параметров None, ставим бесконечность'''
-        '''чтобы min() выбрал другой (реальный) коэффициент'''
-        scale_w = width / w if width is not None else float('inf')
-        scale_h = height / h if height is not None else float('inf')
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.8
+                thickness = 2
+                txt_color = (0, 0, 0)  # Черный текст на цветном фоне
 
-        '''Выбираем минимальный масштаб'''
-        scale = min(scale_w, scale_h)
+                # Считаем размер плашки
+                (w, h), _ = cv2.getTextSize(
+                    label, font, font_scale, thickness
+                )
 
-        new_w = int(w * scale)
-        new_h = int(h * scale)
-        return  cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                # Рисуем рамку объекта
+                cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness=1)
 
-    def __change_yaml_value(self, val):
-        if val is None or str(val).lower() in ['none', 'null', '']:
-            return None
-        return val
+                # Рисуем плашку (фон текста) чуть выше рамки
+                cv2.rectangle(
+                    img, (x1, y1 - h - 15), (x1 + w + 5, y1), color, -1
+                )
+
+                # Пишем текст "class:id"
+                cv2.putText(
+                    img,
+                    label,
+                    (x1, y1 - 10),
+                    font,
+                    font_scale,
+                    txt_color,
+                    thickness,
+                    cv2.LINE_8,
+                )
+
+        return img

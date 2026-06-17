@@ -4,17 +4,38 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from modules.session_manager import SessionManager
 from contextlib import asynccontextmanager
-from routers import camera_router, stream_router
+from routers import camera_router, stream_router, auth_router
+from database import connection
+from database.models import Base
 
-'''освобождает ресурсы при остановки сервера'''
+
+'''создает таблицы при запуске сервера и освобождает ресурсы при остановки сервера'''
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ПРИ СТАРТЕ: Ничего не пишем, менеджер создается в main(config)
+    # --- ЭТАП 1: ЗАПУСК СЕРВЕРА ---
+    print("Инициализация базы данных...", flush=True)
+    db_url = app.state.config.database.db_url
+
+    # Подключаемся к БД
+    connection.init_db(db_url)
+
+    # Проверяем/создаем таблицы на старте
+    async with connection.engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        print("База данных успешно синхронизирована!", flush=True)
+
+    # Передаем управление FastAPI (сервер начинает работать)
     yield
-    # ПРИ ВЫКЛЮЧЕНИИ:
+
+    # --- ЭТАП 2: ОСТАНОВКА СЕРВЕРА  ---
     if hasattr(app.state, 'manager'):
         print("Освобождение ресурсов всех камер...", flush=True)
         app.state.manager.release_all()
+
+    # Закрываем пулы соединений базы данных
+    if connection.engine:
+        await connection.engine.dispose()
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -29,10 +50,12 @@ app.add_middleware(
 
 app.include_router(camera_router.router)
 app.include_router(stream_router.router)
+app.include_router(auth_router.router)
 
 
 @hydra.main(version_base=None, config_path='configs', config_name='config')
 def main(config):
+    app.state.config = config
     app.state.manager = SessionManager(config)
     # Запускаем сервер Uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -27,7 +27,6 @@ export default function MetricCard({ title, type, unit, icon: Icon, metrics }) {
         <div className="text-center font-mono text-xs text-white/80 font-bold uppercase tracking-wider pt-1">
           Нет данных
         </div>
-
       </Card>
     )
   }

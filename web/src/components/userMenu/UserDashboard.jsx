@@ -66,7 +66,7 @@ export default function UserDashboard({ setMode }) {
           <span>Пользователи</span>
         </div>
 
-        {/* Оберка DropdownMenuItem нужна чтобы закрывалось меню при нажатии на кнопку выход */}
+        {/* Обертка DropdownMenuItem нужна чтобы закрывалось меню при нажатии на кнопку выход */}
         <DropdownMenuItem 
           onClick={handleLogout}
           className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-500/10 cursor-pointer transition-colors group">

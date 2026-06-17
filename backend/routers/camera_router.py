@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException
-from pydantic import BaseModel
+from schemas import cameras as sc
 from modules.camera_manager import camera_manager
 
 router = APIRouter(prefix="/api/v1/cameras", tags=["cameras"])
@@ -14,18 +14,9 @@ async def subnet_diagnosis():
         "free_ips": free_ips
     }
 
-# СХЕМА ДАННЫХ (Pydantic модель для ввода RTSP)
-class ConnectRtspFormRequest(BaseModel):
-    name: str
-    brand: str
-    ip: str
-    username: str
-    password: str
-    rtsp_tail: str
-
 # Эндпоинт подключения камеры
 @router.post("/connect")
-async def connect_rtsp_camera(data: ConnectRtspFormRequest, request: Request):
+async def connect_rtsp_camera(data: sc.ConnectRtspFormRequest, request: Request):
     manager = request.app.state.manager
     payload = data.model_dump()
 
@@ -41,11 +32,8 @@ async def connect_rtsp_camera(data: ConnectRtspFormRequest, request: Request):
 
     return {"status": "ok"}
 
-class DisconnectCameraRequest(BaseModel):
-    ip: str
-
 @router.post("/disconnect")
-async def disconnect_camera(data: DisconnectCameraRequest, request: Request):
+async def disconnect_camera(data: sc.DisconnectCameraRequest, request: Request):
     manager = request.app.state.manager
 
     # Проверяем, запущена ли вообще такая сессия
@@ -57,12 +45,8 @@ async def disconnect_camera(data: DisconnectCameraRequest, request: Request):
 
     raise HTTPException(status_code=404, detail="Сессия для данной камеры не найдена")
 
-class DemoCameraRequest(BaseModel):
-    name: str
-    ip: str
-
 @router.post("/demo")
-async def connect_demo_camera(data: DemoCameraRequest, request: Request):
+async def connect_demo_camera(data: sc.DemoCameraRequest, request: Request):
     manager = request.app.state.manager
 
     try:
@@ -76,7 +60,7 @@ async def connect_demo_camera(data: DemoCameraRequest, request: Request):
             file_index = 2  # Если остаток 0 (для demo_2), то файл должен быть 2.mp4
 
         # 3. Собираем прямой путь к файлу (буква r перед строкой защищает слэши)
-        file_path = r"C:\Work\Projects\CVProjectForTrafficAnalytics\backend\{}.mp4".format(file_index)
+        file_path = f"{file_index}.mp4"
 
         # 4. Запускаем сессию!
         # Передаем путь к файлу вместо RTSP-ссылки и сгенерированный ID ("demo_X") в качестве IP
@@ -98,7 +82,7 @@ async def stop_all_cameras(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/toggle-ai")
-async def toggle_camera_ai(data: DisconnectCameraRequest, request: Request):
+async def toggle_camera_ai(data: sc.DisconnectCameraRequest, request: Request):
     try:
         # 1. Достаем менеджер сессий из глобального состояния приложения FastAPI
         manager = request.app.state.manager

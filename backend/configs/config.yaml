@@ -13,11 +13,9 @@ hydra:
 #------------------------------------------------------------------------------------------------
 
 #-----------------------------------Параметры конфигурации проекта--------------------------------
-#capture:
-#  source: 2.mp4                 # путь к файлу  или ID камеры (int)  или ссылка на URL поток
-
 rendering:
   fps_buffer_size: 15               # количество кадров за которое производится расчет FPS
+
 
 detection:
   model_path: weights/yolov8m.onnx  # Путь к модели
@@ -25,4 +23,15 @@ detection:
   classes: [2,3,5,7]                # 2: car, 3: motorcycle, 5: bus, 7: truck
   tracking: bytetrack.yaml          # Математические настройки алгоритма слежения (можно выбрать botsort.yaml или bytetrack.yaml)
   track_buffer: 60                  # Время жизни трека в кадрах
+
+
+database:
+  db_url: "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/ProjectForTrafficAnalytics"
+
+
+email:
+  smtp_server: "smtp.gmail.com"                  # Почтовый сервер Google
+  smtp_port: 587                                 # Стандартный защищенный SSL-порт
+  sender_email: "aleksandrpisarev555@gmail.com"
+  sender_password: "jgzfuywquwhaezrf"            # Пароль
 #---------------------------------------------------------------------------------------------------

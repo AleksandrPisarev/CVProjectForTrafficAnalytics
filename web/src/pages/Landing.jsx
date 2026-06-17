@@ -18,9 +18,11 @@ export default function Landing() {
       <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-20 items-center">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl">TAI</div>
-            <span className="text-xl md:text-2xl font-bold tracking-tight text-slate-800 uppercase">
-              Traffic<span className="text-blue-600">AI</span>
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl items-baseline pt-1.5">
+              <span>TA<span className="font-serif align-baseline">I</span></span>
+            </div>
+            <span className="text-xl md:text-2xl font-bold tracking-tight text-slate-800">
+              Traffic<span className="text-blue-600">A<span className="font-serif">I</span></span>
             </span>
           </div>
           
@@ -59,9 +61,12 @@ export default function Landing() {
             <h1 className="mb-8 tracking-tight break-words">
               <span 
                 style={{ fontSize: '4vw' }} 
-                className="block font-semibold uppercase text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 md:text-6xl"
+                className="block font-semibold text-slate-900 md:text-6xl"
               >
-                trafficAI
+                Traffic
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500">
+                  A<span className="font-serif align-baseline">I</span>
+                </span>
               </span>
               <span 
                 style={{ fontSize: '2vw' }} 
@@ -90,7 +95,12 @@ export default function Landing() {
         <div className="max-w-4xl mx-auto px-6">
           <div className="space-y-8 text-slate-800">
             <p className="text-lg md:text-xl font-light leading-relaxed">
-              <span className="text-blue-600 font-medium text-2xl">TrafficAI</span> — программа для видеонаблюдения и любых проектов с камерами. Устанавливается на компьютер, использует камеры в вашей сети и решает задачи, важные именно для вас.
+              <span className="text-2xl font-medium text-slate-900">
+                Traffic
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 font-bold">
+                  A<span className="font-serif align-baseline">I</span>
+                </span>
+              </span> — программа для видеонаблюдения и любых проектов с камерами. Устанавливается на компьютер, использует камеры в вашей сети и решает задачи, важные именно для вас.
             </p>
             <div className="pt-6 border-l-2 border-blue-100 pl-6">
               <h3 className="text-2xl font-light mb-4 text-slate-900 text-left">
@@ -108,8 +118,13 @@ export default function Landing() {
       <section id="features" className="py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-16">
-            <h2 className="text-3xl md:text-4xl font-light text-slate-900 mb-2 uppercase tracking-wide">
-              Возможности <span className="text-blue-600 font-semibold text-4xl whitespace-nowrap">trafficAI</span>
+            <h2 className="text-3xl md:text-4xl font-light text-slate-900 mb-2 tracking-wide">
+              ВОЗМОЖНОСТИ <span className="text-4xl font-semibold text-slate-900 whitespace-nowrap">
+                            Traffic
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 font-bold">
+                              A<span className="font-serif align-baseline">I</span>
+                            </span>
+                          </span>
             </h2>
             <span 
                 style={{ fontSize: '2vw' }} 
@@ -142,7 +157,13 @@ export default function Landing() {
       </section>
 
       <footer className="py-12 border-t border-gray-100 text-center">
-        <p className="text-slate-400 text-sm">© 2026 TrafficAI. Все права защищены.</p>
+        <p className="text-slate-400 text-sm">
+          © 2026 
+          <span className="font-semibold text-slate-800 ml-1">
+            Traffic<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 font-bold">A<span className="font-serif align-baseline">I</span></span>
+          </span>
+          . Все права защищены.
+        </p>
       </footer>
     </div>
   )

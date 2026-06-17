@@ -58,7 +58,7 @@ export default function UserMenu() {
                                             : "text-[10px] tracking-widest" // Маленький шрифт для слова "Войти"
                                           }
                                         `}>
-                            {currentUser ? (currentUser.name[0] + currentUser.surName[0]).toUpperCase() : "Войти"}
+                            {currentUser ? (currentUser.name[0] + currentUser.surname[0]).toUpperCase() : "Войти"}
                         </span>
                     </Button>
                 </DropdownMenuTrigger>

@@ -1,16 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+from typing import Optional
 
-class ConnectRtspFormRequest(BaseModel):
+class CameraCreate(BaseModel):
     name: str
-    brand: str
     ip: str
-    username: str
-    password: str
-    rtsp_tail: str
+    email: Optional[EmailStr] = None
+    port: int = 554 # Значение по умолчанию
+    brand: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    rtsp_tail: Optional[str] = None
 
 class DisconnectCameraRequest(BaseModel):
-    ip: str
-
-class DemoCameraRequest(BaseModel):
-    name: str
     ip: str

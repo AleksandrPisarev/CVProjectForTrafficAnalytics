@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { useUserStore } from "@/store/useUserStore"
+import { useCameraStore } from "@/store/useCameraStore"
 
 export default function LoginForm({ setMode }) {
     const { login, resetPassword, confirmResetPassword } = useUserStore()
@@ -59,6 +60,8 @@ export default function LoginForm({ setMode }) {
                 case "wrong_password": setLoginError("Неверный пароль. Восстановить?"); break
                 default: setLoginError("Ошибка сервера. Попробуйте позже")
             }
+        } else {
+          useCameraStore.setState({ cameras: result.data })
         }
     }
 
@@ -94,7 +97,7 @@ export default function LoginForm({ setMode }) {
             <div className="space-y-4">
               {/* Поле Email */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-cyan-200 uppercase font-black ml-1 tracking-widest">
+                <label className="text-[10px] text-cyan-400 uppercase font-black ml-1 tracking-widest">
                   Введите Email
                 </label>
                 <input 
@@ -113,8 +116,11 @@ export default function LoginForm({ setMode }) {
               {/* Поле Пароль — скрываем его, если вводим код сброса */}
               {resetStage === 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] text-cyan-200 uppercase font-black ml-1 tracking-widest">
-                    Введите Пароль (должен содержать не менее 3-х символов)
+                  <label className="text-[10px] text-cyan-400 uppercase font-black ml-1 tracking-widest">
+                    Введите Пароль
+                      <span className="block text-[9px] text-cyan-600 normal-case font-normal mt-0.5 tracking-normal">
+                        должен содержать не менее 3-х символов
+                      </span>
                   </label>
                   <input 
                     name="password"

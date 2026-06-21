@@ -94,7 +94,7 @@ export const useUserStore = create((set, get) => ({
         const data = await response.json()
         // Записываем полученного от бэкенда пользователя в currentUser
         set({ currentUser: data.user })
-        return { success: true }
+        return { success: true, data: data.cameras }
       } else {
         const errorData = await response.json()
         // Возвращает точную ошибку бэкенда: "no_user" или "wrong_password"

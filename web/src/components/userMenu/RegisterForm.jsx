@@ -52,7 +52,7 @@ export default function RegisterForm({ setMode }) {
         <div className="flex flex-col gap-4">
             {/* Имя */}
             <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-cyan-200 uppercase font-black ml-1 tracking-widest">
+                <label className="text-[10px] text-cyan-400 uppercase font-black ml-1 tracking-widest">
                     Введите Имя
                 </label>
                 <input 
@@ -64,7 +64,7 @@ export default function RegisterForm({ setMode }) {
             </div>
             {/* Фамилия */}
             <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-cyan-200 uppercase font-black ml-1 tracking-widest">
+                <label className="text-[10px] text-cyan-400 uppercase font-black ml-1 tracking-widest">
                     Введите Фамилию
                 </label>
                 <input 
@@ -76,7 +76,7 @@ export default function RegisterForm({ setMode }) {
             </div>
             {/* Email */}
             <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-cyan-200 uppercase font-black ml-1 tracking-widest">
+                <label className="text-[10px] text-cyan-400 uppercase font-black ml-1 tracking-widest">
                     Введите Email
                 </label>
                 <input 
@@ -90,8 +90,11 @@ export default function RegisterForm({ setMode }) {
             </div>
             {/* Пароль */}
             <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-cyan-200 uppercase font-black ml-1 tracking-widest">
-                    Введите Пароль (должен содержать не менее 3-х символов)
+                <label className="text-[10px] text-cyan-400 uppercase font-black ml-1 tracking-widest">
+                    Введите Пароль
+                        <span className="block text-[9px] text-cyan-600 normal-case font-normal mt-0.5 tracking-normal">
+                            должен содержать не менее 3-х символов
+                        </span>
                 </label>
                 <input 
                     name="password" 

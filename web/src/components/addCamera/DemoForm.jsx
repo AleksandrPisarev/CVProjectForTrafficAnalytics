@@ -1,8 +1,10 @@
 import { useState } from "react"
 import { useCameraStore } from "@/store/useCameraStore"
+import { useUserStore } from "@/store/useUserStore"
 
 export default function DemoForm({ onSuccess }) {
   const { addCamera, setActiveCamera, cameras } = useCameraStore()
+  const { currentUser } = useUserStore()
   
   const [cameraName, setCameraName] = useState("")
   const [error, setError] = useState(null)
@@ -30,17 +32,16 @@ export default function DemoForm({ onSuccess }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: cameraName.trim(),
-          ip: generatedIp 
+          ip: generatedIp,
+          email: currentUser.email
         })
       })
 
       if (response.ok) {
         // Бэкенд успешно создал демо-сессию, обновляем фронтенд:
         // 1. Добавляем в общий список карусели
-        addCamera({
-          name: cameraName.trim(),
-          ip: generatedIp
-        })
+        const data = await response.json()
+        addCamera(data.camera)
         // 2. Сразу активируем её в сетке плееров
         setActiveCamera(generatedIp)
         

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { IMaskInput } from "react-imask"
 import { Loader2, HelpCircle, Eye, EyeOff } from "lucide-react"
 import { useCameraStore } from "@/store/useCameraStore"
+import { useUserStore } from "@/store/useUserStore"
 
 // Список 5 основных производителей и их типовых путей (хвостов) для RTSP
 const CAMERA_BRANDS = [
@@ -13,6 +14,8 @@ const CAMERA_BRANDS = [
 
 export default function RtspForm({ netData, onSuccess }) {
   const { cameras, addCamera, setActiveCamera } = useCameraStore()
+  const { currentUser } = useUserStore()
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
@@ -62,7 +65,8 @@ export default function RtspForm({ netData, onSuccess }) {
           ip: formData.ip,
           username: formData.username,
           password: formData.password,
-          rtsp_tail: selectedBrand.path
+          rtsp_tail: selectedBrand.path,
+          email: currentUser.email
         })
       })
 
@@ -70,16 +74,8 @@ export default function RtspForm({ netData, onSuccess }) {
         const errorData = await response.json()
         throw new Error(errorData.detail)
       }
-
-      addCamera({
-        name: formData.name.trim(),
-        brand: formData.brand,
-        ip: formData.ip.trim(),
-        username: formData.username.trim(),
-        password: formData.password,
-        port: 554,
-        rtsp_tail: selectedBrand.path
-      })
+      const data = await response.json()
+      addCamera(data.camera)
 
       setActiveCamera(formData.ip.trim())
       onSuccess()

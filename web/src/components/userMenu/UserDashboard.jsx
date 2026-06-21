@@ -1,12 +1,15 @@
-import React from 'react'
-import { Search, Settings, Users, LogOut } from 'lucide-react'
+import React, { useState } from 'react'
+import { Search, Settings, Users, LogOut, UserPen } from 'lucide-react'
 import { useUserStore } from '@/store/useUserStore'
 import { useCameraStore } from '@/store/useCameraStore'
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import UserProfileModal from './UserProfileModal'
 
 export default function UserDashboard({ setMode }) {
   const { currentUser } = useUserStore()
-  const { activeCamera } = useCameraStore()
+
+   // Состояние для открытия/закрытия модального окна профиля
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const isAdmin = currentUser?.status === 'admin'
 
   const handleLogout = async () => {
@@ -41,14 +44,22 @@ export default function UserDashboard({ setMode }) {
       {/* Шапка меню */}
       <div className="px-4 py-3 bg-white/[0.03] border-b border-white/10">
         <p className="text-sm font-bold text-white truncate">
-          {currentUser?.name} {currentUser?.surName}
+          {currentUser?.name} {currentUser?.surname}
         </p>
-        <p className="text-[10px] uppercase tracking-widest text-cyan-500/60 mt-0.5">
+        <p className="text-[10px] uppercase tracking-widest text-cyan-400 mt-0.5">
           {currentUser?.status}
         </p>
       </div>
 
       <div className="py-1">
+        <div 
+          onClick={() => setIsProfileOpen(true)}
+          className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors group"
+        >
+          <UserPen size={16} className="text-slate-500 group-hover:text-cyan-400" />
+          <span className="text-sm">Редактировать профиль</span>
+        </div>
+
         <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors group">
           <Search size={16} className="text-slate-500 group-hover:text-cyan-400" />
           <span className="text-sm">Поиск</span>
@@ -74,6 +85,10 @@ export default function UserDashboard({ setMode }) {
           <span className="text-sm group-hover:text-red-500 font-medium">Выход</span>
         </DropdownMenuItem>
       </div>
+      {/* Модальное окно профиля */}
+      {isProfileOpen && (
+        <UserProfileModal onClose={() => setIsProfileOpen(false)} />
+      )}
     </div>
   )
 }

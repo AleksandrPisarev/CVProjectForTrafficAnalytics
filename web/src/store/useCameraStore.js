@@ -2,20 +2,11 @@ import { create } from 'zustand'
 
 export const useCameraStore = create((set, get) => ({
   // Список камер
-  cameras: [
-        // name: formData.name.trim(),
-        // brand: formData.brand,
-        // ip: formData.ip.trim(),
-        // username: formData.username.trim(),
-        // password: formData.password,
-        // port: 554,
-        // rtsp_tail: selectedBrand.path
-  ],
+  cameras: [],
   
-  // mac выбранной камеры 
   activeCamera: [],
 
-  // Добавляет mac в массив activeCamera при повторном нажатии удаляет камеру
+  // Добавляет ip в массив activeCamera при повторном нажатии удаляет камеру
   setActiveCamera: (ip) => set((state) => {
     const isExist = state.activeCamera.includes(ip)
     if (isExist) {

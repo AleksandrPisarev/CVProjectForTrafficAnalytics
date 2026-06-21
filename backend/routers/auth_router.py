@@ -6,7 +6,7 @@ import bcrypt
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
 from database import connection
-from database.models import User
+from database.models import User, Camera
 from schemas import auth as s_a
 
 # Импортируем инструменты для создания писем и асинхронного SMTP
@@ -89,7 +89,7 @@ async def register_confirm(payload: s_a.UserRegisterConfirm):
     # 3. Код совпал! Очищаем память сервера от этого временного кода
     TEMP_VERIFICATION_CODES.pop(payload.email, None)
 
-    # 4. Защищаем пароль: превращаем чистый текст "12345" в хэш-строку [INDEX]
+    # 4. Защищаем пароль: превращаем чистый текст "12345" в хэш-строку
     hashed_pwd = hash_password(payload.password)
 
     # 5. Открываем сессию для работы с PostgreSQL через модуль connection
@@ -99,11 +99,11 @@ async def register_confirm(payload: s_a.UserRegisterConfirm):
             name=payload.name,
             surname=payload.surname,
             email=payload.email,
-            password=hashed_pwd,  # Сохраняем ХЭШ, а не чистый пароль! [INDEX]
+            password=hashed_pwd,  # Сохраняем ХЭШ, а не чистый пароль!
             status="operator"  # По умолчанию ставим operator
         )
 
-        # Переводчик SQLAlchemy формирует INSERT-запрос и отправляет в базу [INDEX]
+        # Переводчик SQLAlchemy формирует INSERT-запрос и отправляет в базу
         session.add(new_user)
 
         # Намертво сохраняем пользователя в PostgreSQL
@@ -132,6 +132,28 @@ async def login_user(payload: s_a.UserLoginRequest):
             # Возвращаем маркер, который Zustand переведет как "wrong_password"
             raise HTTPException(status_code=400, detail="wrong_password")
 
+        # Ищем все камеры, где user_id совпадает с id вошедшего пользователя
+        camera_query = select(Camera).where(Camera.user_id == user.id)
+        camera_result = await session.execute(camera_query)
+
+        # Получаем список всех объектов камер из базы данных
+        db_cameras = camera_result.scalars().all()
+
+        cameras_list = [
+            {
+                "id": cam.id,
+                "name": cam.name,
+                "ip": cam.ip,
+                "port": cam.port,
+                "brand": cam.brand,
+                "username": cam.username,
+                "password": cam.password,
+                "rtsp_tail": cam.rtsp_tail,
+                "user_id": cam.user_id
+            }
+            for cam in db_cameras
+        ]
+
         # Шаг 3: Если всё совпало, отдаем данные пользователя БЕЗ пароля
         return {
             "success": True,
@@ -140,7 +162,8 @@ async def login_user(payload: s_a.UserLoginRequest):
                 "surname": user.surname,
                 "email": user.email,
                 "status": user.status
-            }
+            },
+            "cameras": cameras_list  # Передаем массив со всеми полями
         }
 
 @router.post("/reset-password")

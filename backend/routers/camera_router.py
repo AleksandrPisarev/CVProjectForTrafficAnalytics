@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Request, HTTPException
 from schemas import cameras as sc
 from modules.camera_manager import camera_manager
+from sqlalchemy import select
+from database import connection
+from database.models import Camera, User
 
 router = APIRouter(prefix="/api/v1/cameras", tags=["cameras"])
 
@@ -16,7 +19,7 @@ async def subnet_diagnosis():
 
 # Эндпоинт подключения камеры
 @router.post("/connect")
-async def connect_rtsp_camera(data: sc.ConnectRtspFormRequest, request: Request):
+async def connect_rtsp_camera(data: sc.CameraCreate, request: Request):
     manager = request.app.state.manager
     payload = data.model_dump()
 
@@ -30,7 +33,45 @@ async def connect_rtsp_camera(data: sc.ConnectRtspFormRequest, request: Request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"status": "ok"}
+    # Если email не пришел — значит, это запуск из карусели.
+    if not data.email:
+         return {"success": True}
+
+    # Записываем камеру в базу данных
+    async with connection.async_session_maker() as session:
+        # Находим id пользователя по присланному email
+        user_query = select(User).where(User.email == data.email)
+        user_res = await session.execute(user_query)
+        user = user_res.scalars().first()
+
+        new_camera = Camera(
+            name=data.name,
+            brand=data.brand,
+            ip=data.ip,
+            username=data.username,
+            password=data.password,
+            rtsp_tail=data.rtsp_tail,
+            port=data.port,
+            user_id=user.id
+        )
+        session.add(new_camera)
+        await session.commit()
+        # Принудительно обновляем объект, чтобы SQLAlchemy считала сгенерированный базой id
+        await session.refresh(new_camera)
+
+    return {"success": True,
+        "camera": {
+            "id": new_camera.id,
+            "name": new_camera.name,
+            "ip": new_camera.ip,
+            "port": new_camera.port,
+            "brand": new_camera.brand,
+            "username": new_camera.username,
+            "password": new_camera.password,
+            "rtsp_tail": new_camera.rtsp_tail,
+            "user_id": new_camera.user_id
+        }
+    }
 
 @router.post("/disconnect")
 async def disconnect_camera(data: sc.DisconnectCameraRequest, request: Request):
@@ -46,7 +87,7 @@ async def disconnect_camera(data: sc.DisconnectCameraRequest, request: Request):
     raise HTTPException(status_code=404, detail="Сессия для данной камеры не найдена")
 
 @router.post("/demo")
-async def connect_demo_camera(data: sc.DemoCameraRequest, request: Request):
+async def connect_demo_camera(data: sc.CameraCreate, request: Request):
     manager = request.app.state.manager
 
     try:
@@ -69,7 +110,37 @@ async def connect_demo_camera(data: sc.DemoCameraRequest, request: Request):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"status": "ok"}
+    # Если email не пришел — значит, это запуск из карусели.
+    if not data.email:
+        return {"success": True}
+
+    # Записываем камеру в базу данных
+    async with connection.async_session_maker() as session:
+        # Находим id пользователя по присланному email
+        user_query = select(User).where(User.email == data.email)
+        user_res = await session.execute(user_query)
+        user = user_res.scalars().first()
+
+        new_camera = Camera(
+            name=data.name.strip(),
+            ip=data.ip.strip(),
+            port=data.port,
+            user_id=user.id
+        )
+        session.add(new_camera)
+        await session.commit()
+        # Принудительно обновляем объект, чтобы SQLAlchemy считала сгенерированный базой id
+        await session.refresh(new_camera)
+
+    return {"success": True,
+        "camera": {
+            "id": new_camera.id,
+            "name": new_camera.name,
+            "ip": new_camera.ip,
+            "port": new_camera.port,
+            "user_id": new_camera.user_id
+        }
+    }
 
 @router.post("/stop-all")
 async def stop_all_cameras(request: Request):

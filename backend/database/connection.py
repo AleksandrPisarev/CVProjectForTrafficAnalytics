@@ -1,4 +1,5 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 # Переменные для движка и фабрики сессий (инициализируем в lifespan)
 engine = None
@@ -10,3 +11,10 @@ def init_db(database_url: str):
     engine = create_async_engine(database_url, echo=True) # echo=True покажет SQL в консоли
     # Создаем фабрику сессий для роутеров
     async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    global async_session_maker
+
+    async with async_session_maker() as session:
+        yield session

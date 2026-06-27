@@ -1,8 +1,10 @@
 import random
-from fastapi import APIRouter, HTTPException, Request, status
-from database import connection
+from typing import Annotated
+from fastapi import APIRouter, HTTPException, Request, status, Depends
+from database.connection import get_session
 from database.models import User
 from sqlalchemy import select, update, delete
+from sqlalchemy.ext.asyncio import AsyncSession
 from email.mime.text import MIMEText
 import aiosmtplib
 from schemas.users import UserPatchRequest, EmailConfirmRequest
@@ -13,7 +15,12 @@ router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
 # ЭНДПОИНТ 1: НАЖАТИЕ КНОПКИ «СОХРАНИТЬ»
 @router.patch("/{current_email}")
-async def update_profile(current_email: str, payload: UserPatchRequest, request: Request):
+async def update_profile(
+        current_email: str,
+        payload: UserPatchRequest,
+        session: Annotated[AsyncSession, Depends(get_session)],
+        request: Request
+):
     update_dict = payload.model_dump(exclude_unset=True)
 
     # Если меняется email
@@ -21,11 +28,10 @@ async def update_profile(current_email: str, payload: UserPatchRequest, request:
         new_email = update_dict["email"]
 
         # 1. Проверяем уникальность почты
-        async with connection.async_session_maker() as session:
-            query = select(User).where(User.email == new_email)
-            result = await session.execute(query)
-            if result.scalars().first():
-                raise HTTPException(status_code=400, detail=f"Пользователь {new_email} уже зарегистрирован в системе")
+        query = select(User).where(User.email == new_email)
+        result = await session.execute(query)
+        if result.scalars().first():
+            raise HTTPException(status_code=400, detail=f"Пользователь {new_email} уже зарегистрирован в системе")
 
         # 2. Отправляем письмо с 4-значным кодом
         code = str(random.randint(1000, 9999))
@@ -51,21 +57,24 @@ async def update_profile(current_email: str, payload: UserPatchRequest, request:
     if "password" in update_dict:
         update_dict["password"] = hash_password(update_dict["password"])
 
-    async with connection.async_session_maker() as session:
-        query = update(User).where(User.email == current_email).values(**update_dict).returning(User)
-        result = await session.execute(query)
-        user = result.scalars().first()
-        await session.commit()
+    query = update(User).where(User.email == current_email).values(**update_dict).returning(User)
+    result = await session.execute(query)
+    user = result.scalars().first()
+    await session.commit()
 
-        return {
-            "success": True,
-            "user": {"name": user.name, "surname": user.surname, "email": user.email, "status": user.status}
-        }
+    return {
+        "success": True,
+        "user": {"name": user.name, "surname": user.surname, "email": user.email, "status": user.status}
+    }
 
 
 # ЭНДПОИНТ 2: ВВОД КОДА И ПЕРЕЗАПИСЬ ВСЕХ ДАННЫХ В БД
 @router.post("/{current_email}/confirm-email")
-async def confirm_email(current_email: str, payload: EmailConfirmRequest):
+async def confirm_email(
+        current_email: str,
+        session: Annotated[AsyncSession, Depends(get_session)],
+        payload: EmailConfirmRequest
+):
     new_email = payload.new_email
 
     # 1. Ищем данные в кэше
@@ -86,22 +95,25 @@ async def confirm_email(current_email: str, payload: EmailConfirmRequest):
         cached_data["password"] = hash_password(cached_data["password"])
 
     # 4. Пишем всё в PostgreSQL одной транзакцией
-    async with connection.async_session_maker() as session:
-        query = update(User).where(User.email == current_email).values(**cached_data).returning(User)
-        result = await session.execute(query)
-        user = result.scalars().first()
-        await session.commit()
+    query = update(User).where(User.email == current_email).values(**cached_data).returning(User)
+    result = await session.execute(query)
+    user = result.scalars().first()
+    await session.commit()
 
-        TEMP_VERIFICATION_CODES.pop(new_email, None)  # Чистим кэш
+    TEMP_VERIFICATION_CODES.pop(new_email, None)  # Чистим кэш
 
-        return {
-            "success": True,
-            "user": {"name": user.name, "surname": user.surname, "email": user.email, "status": user.status}
-        }
+    return {
+        "success": True,
+        "user": {"name": user.name, "surname": user.surname, "email": user.email, "status": user.status}
+    }
 
 
 @router.delete("/{current_email}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(current_email: str, request: Request):
+async def delete_user(
+        current_email: str,
+        session: Annotated[AsyncSession, Depends(get_session)],
+        request: Request
+):
     # 1. СНАЧАЛА ОСТАНАВЛИВАЕМ ВСЕ КАМЕРЫ НА СЕРВЕРЕ
     manager = request.app.state.manager
     try:
@@ -115,9 +127,8 @@ async def delete_user(current_email: str, request: Request):
         )
 
     # 2. ПОСЛЕ УСПЕШНОЙ ОСТАНОВКИ КАМЕР УДАЛЯЕМ ЗАПИСЬ ИЗ БД
-    async with connection.async_session_maker() as session:
-        query = delete(User).where(User.email == current_email)
-        result = await session.execute(query)
+    query = delete(User).where(User.email == current_email)
+    result = await session.execute(query)
 
-        await session.commit()
-        return None  # При статусе 204 возвращаем пустой ответ
+    await session.commit()
+    return None  # При статусе 204 возвращаем пустой ответ

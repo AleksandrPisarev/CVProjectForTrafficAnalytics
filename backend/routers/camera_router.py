@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
+from typing import Annotated
 from schemas import cameras as sc
 from modules.camera_manager import camera_manager
 from sqlalchemy import select
-from database import connection
+from sqlalchemy.ext.asyncio import AsyncSession
+from database.connection import get_session
 from database.models import Camera, User
 
 router = APIRouter(prefix="/api/v1/cameras", tags=["cameras"])
@@ -19,7 +21,11 @@ async def subnet_diagnosis():
 
 # Эндпоинт подключения камеры
 @router.post("/connect")
-async def connect_rtsp_camera(data: sc.CameraCreate, request: Request):
+async def connect_rtsp_camera(
+        data: sc.CameraCreate,
+        session: Annotated[AsyncSession, Depends(get_session)],
+        request: Request
+):
     manager = request.app.state.manager
     payload = data.model_dump()
 
@@ -38,26 +44,25 @@ async def connect_rtsp_camera(data: sc.CameraCreate, request: Request):
          return {"success": True}
 
     # Записываем камеру в базу данных
-    async with connection.async_session_maker() as session:
-        # Находим id пользователя по присланному email
-        user_query = select(User).where(User.email == data.email)
-        user_res = await session.execute(user_query)
-        user = user_res.scalars().first()
+    # Находим id пользователя по присланному email
+    user_query = select(User).where(User.email == data.email)
+    user_res = await session.execute(user_query)
+    user = user_res.scalars().first()
 
-        new_camera = Camera(
-            name=data.name,
-            brand=data.brand,
-            ip=data.ip,
-            username=data.username,
-            password=data.password,
-            rtsp_tail=data.rtsp_tail,
-            port=data.port,
-            user_id=user.id
-        )
-        session.add(new_camera)
-        await session.commit()
-        # Принудительно обновляем объект, чтобы SQLAlchemy считала сгенерированный базой id
-        await session.refresh(new_camera)
+    new_camera = Camera(
+        name=data.name,
+        brand=data.brand,
+        ip=data.ip,
+        username=data.username,
+        password=data.password,
+         rtsp_tail=data.rtsp_tail,
+        port=data.port,
+        user_id=user.id
+    )
+    session.add(new_camera)
+    await session.commit()
+    # Принудительно обновляем объект, чтобы SQLAlchemy считала сгенерированный базой id
+    await session.refresh(new_camera)
 
     return {"success": True,
         "camera": {
@@ -87,7 +92,11 @@ async def disconnect_camera(data: sc.DisconnectCameraRequest, request: Request):
     raise HTTPException(status_code=404, detail="Сессия для данной камеры не найдена")
 
 @router.post("/demo")
-async def connect_demo_camera(data: sc.CameraCreate, request: Request):
+async def connect_demo_camera(
+        data: sc.CameraCreate,
+        session: Annotated[AsyncSession, Depends(get_session)],
+        request: Request
+):
     manager = request.app.state.manager
 
     try:
@@ -115,22 +124,21 @@ async def connect_demo_camera(data: sc.CameraCreate, request: Request):
         return {"success": True}
 
     # Записываем камеру в базу данных
-    async with connection.async_session_maker() as session:
-        # Находим id пользователя по присланному email
-        user_query = select(User).where(User.email == data.email)
-        user_res = await session.execute(user_query)
-        user = user_res.scalars().first()
+    # Находим id пользователя по присланному email
+    user_query = select(User).where(User.email == data.email)
+    user_res = await session.execute(user_query)
+    user = user_res.scalars().first()
 
-        new_camera = Camera(
-            name=data.name.strip(),
-            ip=data.ip.strip(),
-            port=data.port,
-            user_id=user.id
-        )
-        session.add(new_camera)
-        await session.commit()
-        # Принудительно обновляем объект, чтобы SQLAlchemy считала сгенерированный базой id
-        await session.refresh(new_camera)
+    new_camera = Camera(
+        name=data.name.strip(),
+        ip=data.ip.strip(),
+        port=data.port,
+        user_id=user.id
+    )
+    session.add(new_camera)
+    await session.commit()
+    # Принудительно обновляем объект, чтобы SQLAlchemy считала сгенерированный базой id
+    await session.refresh(new_camera)
 
     return {"success": True,
         "camera": {

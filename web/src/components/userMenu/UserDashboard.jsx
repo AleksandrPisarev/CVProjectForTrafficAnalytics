@@ -6,11 +6,38 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import UserProfileModal from './UserProfileModal'
 
 export default function UserDashboard({ setMode }) {
-  const { currentUser } = useUserStore()
+  const { currentUser, checkSessionStatus } = useUserStore()
 
    // Состояние для открытия/закрытия модального окна профиля
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+   // Состояния для лоадера и текста ошибки ограничений
+  const [isChecking, setIsChecking] = useState(false)
+  const [statusError, setStatusError] = useState("")
+
   const isAdmin = currentUser?.status === 'admin'
+
+  // Функция проверки статуса сессии при клике на редактировать профиль
+  const handleEditProfileClick = async () => {
+    setIsChecking(true)
+    setStatusError("") // Сбрасываем старый текст
+
+    // Делаем запрос к БД через Zustand
+    const result = await checkSessionStatus()
+    
+    setIsChecking(false)
+
+    if (result.success) {
+      if (result.auth_type === 'by_password') {
+        // Если вошел по паролю — открываем модалку профиля
+        setIsProfileOpen(true)
+      } else {
+        // Если автоматически по сессии — выводим текст предупреждения
+        setStatusError("Это действие разрешено только при входе через пароль!")
+      }
+    } else {
+      setStatusError("Сессия недействительна. Перезайдите в аккаунт.")
+    }
+  }
 
   const handleLogout = async () => {
     try {
@@ -53,12 +80,21 @@ export default function UserDashboard({ setMode }) {
 
       <div className="py-1">
         <div 
-          onClick={() => setIsProfileOpen(true)}
+          onClick={isChecking ? null : handleEditProfileClick}
           className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors group"
         >
           <UserPen size={16} className="text-slate-500 group-hover:text-cyan-400" />
-          <span className="text-sm">Редактировать профиль</span>
+          <span className="text-sm">
+            {isChecking ? "Проверка доступа" : "Редактировать профиль"}
+          </span>
         </div>
+
+        {/* Текст предупреждения, если у пользователя нет прав */}
+        {statusError && (
+          <p className="px-4 py-1.5 text-[10px] text-amber-400 font-bold uppercase tracking-wide leading-relaxed bg-amber-500/5 border-y border-amber-500/10 animate-pulse">
+            {statusError}
+          </p>
+        )}
 
         <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors group">
           <Search size={16} className="text-slate-500 group-hover:text-cyan-400" />

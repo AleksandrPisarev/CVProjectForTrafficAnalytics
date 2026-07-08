@@ -17,3 +17,6 @@ class UserLoginRequest(BaseModel):
 class ResetPasswordConfirmRequest(BaseModel):
     email: EmailStr
     user_code: str = Field(..., min_length=4, max_length=4)
+
+class SessionLoginRequest(BaseModel):
+    session_code: str

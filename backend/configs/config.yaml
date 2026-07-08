@@ -16,7 +16,6 @@ hydra:
 rendering:
   fps_buffer_size: 15               # количество кадров за которое производится расчет FPS
 
-
 detection:
   model_path: weights/yolov8m.onnx  # Путь к модели
   conf: 0.45                        # Порог уверенности детектора (чем больше значение, тем меньше находит)
@@ -24,10 +23,8 @@ detection:
   tracking: bytetrack.yaml          # Математические настройки алгоритма слежения (можно выбрать botsort.yaml или bytetrack.yaml)
   track_buffer: 60                  # Время жизни трека в кадрах
 
-
 database:
   db_url: "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/ProjectForTrafficAnalytics"
-
 
 email:
   smtp_server: "smtp.gmail.com"                  # Почтовый сервер Google

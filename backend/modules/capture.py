@@ -71,3 +71,8 @@ class Frame_capture:
         """Освобождение ресурсов."""
         self.cap.release()
         # cv2.destroyAllWindows()
+
+    def get_fps(self) -> float:
+        """Возвращает реальный FPS видеофайла."""
+        fps = self.cap.get(cv2.CAP_PROP_FPS)
+        return fps

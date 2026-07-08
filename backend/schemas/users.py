@@ -12,3 +12,6 @@ class UserPatchRequest(BaseModel):
 class EmailConfirmRequest(BaseModel):
     new_email: EmailStr
     code: str
+
+class CheckStatusRequest(BaseModel):
+    session_code: str

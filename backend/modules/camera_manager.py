@@ -142,7 +142,7 @@ class CameraManager:
         return subnet_range, free_ips
 
     async def check_camera(self, data: dict):
-        """Асинхронная обертку для запуска потока в OpenCV"""
+        """Асинхронная обертка для запуска потока в OpenCV"""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self.executor, self._open_stream, data)
 

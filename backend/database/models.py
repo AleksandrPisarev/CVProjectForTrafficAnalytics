@@ -41,3 +41,17 @@ class Camera(Base):
 
     # Вторичный ключ, связанный с таблицей users по колонке id
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+
+class SecretSession(Base):
+    __tablename__ = "secret_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Секретный уникальный код, по которому бэкэнд будет узнавать устройство
+    session_code: Mapped[str] = mapped_column(unique=True, index=True, nullable=False)
+
+    # Статус: 'by_password' (полные права) или 'by_session' (ограниченные)
+    auth_type: Mapped[str] = mapped_column(default="by_password", nullable=False)

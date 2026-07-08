@@ -5,10 +5,10 @@ import secrets
 import bcrypt
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, Request, Depends
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.connection import get_session
-from database.models import User, Camera
+from database.models import User, Camera, SecretSession
 from schemas import auth as s_a
 
 # Импортируем инструменты для создания писем и асинхронного SMTP
@@ -113,12 +113,31 @@ async def register_confirm(
     # Переводчик SQLAlchemy формирует INSERT-запрос и отправляет в базу
     session.add(new_user)
 
-    # Намертво сохраняем пользователя в PostgreSQL
+    await session.flush()
+
+    # Генерируем случайную строку из 32 байт (переведенную в текст из 64 символов)
+    # Этот код невозможно угадать или подобрать перебором
+    random_session_code = secrets.token_hex(32)
+
+    # Создаем запись сессии. По умолчанию auth_type будет 'by_password'
+    new_session = SecretSession(
+        user_id=new_user.id,  # Берем id, который получили после session.flush()
+        session_code=random_session_code,
+        auth_type="by_password"  # Так как он только что подтвердил регистрацию паролем
+    )
+
+    session.add(new_session)
+
+    # Намертво сохраняем и пользователя, и его первую сессию в PostgreSQL
     await session.commit()
 
-    print(f"[DB SUCCESS]: Пользователь {payload.email} успешно сохранен в PostgreSQL!", flush=True)
+    print(f"[DB SUCCESS]: Пользователь {payload.email} и сессия успешно сохранены!", flush=True)
 
-    return {"success": True}
+    # Возвращаем фронтенду флаг успеха и сам код сессии, чтобы Zustand его запомнил
+    return {
+        "success": True,
+        "session_code": random_session_code
+    }
 
 @router.post("/login")
 async def login_user(
@@ -140,6 +159,24 @@ async def login_user(
     if not verify_password(payload.password, user.password):
         # Возвращаем маркер, который Zustand переведет как "wrong_password"
         raise HTTPException(status_code=400, detail="wrong_password")
+
+    # Удаляем все старые сессии этого пользователя, если они были
+    delete_query = delete(SecretSession).where(SecretSession.user_id == user.id)
+    await session.execute(delete_query)
+
+    # Генерируем новый чистый секретный код сессии
+    random_session_code = secrets.token_hex(32)
+
+    # Создаем новую сессию в состоянии максимального доступа ('by_password')
+    new_session = SecretSession(
+        user_id=user.id,
+        session_code=random_session_code,
+        auth_type="by_password"
+    )
+    session.add(new_session)
+
+    # Делаем flush, чтобы изменения подготовились вместе с будущим коммитом
+    await session.flush()
 
     # Ищем все камеры, где user_id совпадает с id вошедшего пользователя
     camera_query = select(Camera).where(Camera.user_id == user.id)
@@ -163,7 +200,66 @@ async def login_user(
         for cam in db_cameras
     ]
 
+    await session.commit()
+
     # Шаг 3: Если всё совпало, отдаем данные пользователя БЕЗ пароля
+    return {
+        "success": True,
+        "session_code": random_session_code,
+        "user": {
+            "name": user.name,
+            "surname": user.surname,
+            "email": user.email,
+            "status": user.status
+        },
+        "cameras": cameras_list  # Передаем массив со всеми полями
+    }
+
+@router.post("/login-by-session")
+async def login_by_session(
+        payload: s_a.SessionLoginRequest,
+        session: Annotated[AsyncSession, Depends(get_session)]
+):
+    # 1. Ищем сессию в БД по присланному коду
+    session_query = select(SecretSession).where(SecretSession.session_code == payload.session_code)
+    session_result = await session.execute(session_query)
+    db_session = session_result.scalars().first()
+
+    # Если кода нет в БД (сессия устарела, удалена или подделана)
+    if not db_session:
+        raise HTTPException(status_code=400, detail="invalid_session")
+
+    # 2. Сессия найдена! Теперь вытаскиваем пользователя, которому она принадлежит
+    user_query = select(User).where(User.id == db_session.user_id)
+    user_result = await session.execute(user_query)
+    user = user_result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=400, detail="no_user")
+
+    # 3. КРИТИЧЕСКИЙ ШАГ БЕЗОПАСНОСТИ:
+    # Так как пользователь входит автоматически, понижаем статус доступа до 'by_session'
+    db_session.auth_type = "by_session"
+    await session.flush()
+
+    # 4. Собираем его камеры, как в обычном логине
+    camera_query = select(Camera).where(Camera.user_id == user.id)
+    camera_result = await session.execute(camera_query)
+    db_cameras = camera_result.scalars().all()
+
+    cameras_list = [
+        {
+            "id": cam.id, "name": cam.name, "ip": cam.ip, "port": cam.port,
+            "brand": cam.brand, "username": cam.username, "password": cam.password,
+            "rtsp_tail": cam.rtsp_tail, "user_id": cam.user_id
+        }
+        for cam in db_cameras
+    ]
+
+    # Сохраняем изменение статуса auth_type в базе данных
+    await session.commit()
+
+    # Возвращаем данные. Пользователь зашел!
     return {
         "success": True,
         "user": {
@@ -172,7 +268,7 @@ async def login_user(
             "email": user.email,
             "status": user.status
         },
-        "cameras": cameras_list  # Передаем массив со всеми полями
+        "cameras": cameras_list
     }
 
 @router.post("/reset-password")

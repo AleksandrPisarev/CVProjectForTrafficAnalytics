@@ -15,6 +15,10 @@ class CameraSession:
         self.tracker_reset = True  # Внутренний будильник для сброса трекера
 
         self.capture = Frame_capture(url)
+        # Это поле нужно для демонстрационного режима вычисляет FPS файла один раз при старте
+        # не делая обращение к C++ библиотеке OpenCV при каждой итерации цикла
+        self.fps = self.capture.get_fps()
+
         self.rendering = Rendering(config['rendering'])
         self.detection = DetectionTracking(config['detection'])
 
@@ -48,16 +52,24 @@ class CameraSession:
     def _flow_read(self):
         """ПОТОК 1: Только захват кадров из источника и отправка в сырую очередь"""
         print(f"[Поток Чтения {self.id}] НАЧАЛО РАБОТЫ")
+
+        # Получаем итератор
+        frame_generator = self.capture.process()
+
         # Читаем кадры из модуля capture
-        for obj_frame in self.capture.process():
-            if not self.is_running:
-                break
+        while self.is_running:
+            # 1. Точка отсчета НАЧАЛА СЛЕДУЮЩЕГО ТАКТА (до чтения кадра!)
+            start_time = time.perf_counter()
+
+            try:
+                # Читаем следующий кадр из генератора
+                obj_frame = next(frame_generator)
+            except StopIteration:
+                break  # Генератор завершился (видео закончилось или битое)
 
             # ПОДСТРАХОВКА: Если из-за сбоя OpenCV все-таки проскочил битый или пустой объект кадра
             if obj_frame is None or obj_frame.image is None:
                 continue  # Пропускаем этот такт, защищая очереди
-
-            start_time = time.time()
 
             # Если сырая очередь полная, принудительно освобождаем её, выбрасывая старый кадр
             if self.raw_queue.full():
@@ -173,7 +185,7 @@ class CameraSession:
         print(f"[Поток Рендеринга {self.id}] ЗАВЕРШИЛ РАБОТУ.")
 
     def get_video_stream(self):
-        """Генератор байт MJPEG для Эндпоинта /video_feed (Сжатие через TurboJPEG)"""
+        """Генератор байт MJPEG для Эндпоинта /video_feed"""
         print(f"[Generator {self.id}] Сетевой генератор MJPEG запущен.")
 
         while self.is_running:
@@ -268,10 +280,13 @@ class CameraSession:
         print(f"[Session {self.id}] Все ресурсы и потоки камеры успешно освобождены.")
 
     def __apply_camera_fps(self, start_time):
-        ''' Функция замедляющая чтение кадров из файла имитирующаю поток из камеры'''
-        TARGET_FPS = 40
-        FRAME_TIME = 1.0 / TARGET_FPS
-        elapsed = time.time() - start_time
-        sleep_time = FRAME_TIME - elapsed
+        ''' Функция замедляющая чтение кадров, адаптируясь под реальный FPS видеофайла '''
+        # Рассчитываем время кадра на основе динамического self.fps
+        frame_time = 1.0 / self.fps
+
+        # Вычисляем, сколько РЕАЛЬНО ушло времени на чтение кадра и работу с очередью
+        elapsed = time.perf_counter() - start_time
+
+        sleep_time = frame_time - elapsed
         if sleep_time > 0:
             time.sleep(sleep_time)

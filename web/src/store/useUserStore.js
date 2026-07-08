@@ -1,10 +1,11 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
-export const useUserStore = create((set, get) => ({
+export const useUserStore = create( persist((set, get) => ({
 
   currentUser: null,
-
   generatedCode: null,
+  secretSession: null,
 
   registrationCheck: async (newUser) => {
 
@@ -58,8 +59,10 @@ export const useUserStore = create((set, get) => ({
       })
 
       if (response.ok) {
-        // Если бэкенд успешно записал пользователя в базу данных:
+        const data = await response.json()
+        // Zustand сам обновит память и запишет secretSession в localStorage
         set({ 
+          secretSession: data.session_code,
           generatedCode: null, // Сбрасываем режим ввода кода
           currentUser: {
             name: newUser.name,
@@ -93,11 +96,53 @@ export const useUserStore = create((set, get) => ({
       if (response.ok) {
         const data = await response.json()
         // Записываем полученного от бэкенда пользователя в currentUser
-        set({ currentUser: data.user })
+        set({ currentUser: data.user,
+              secretSession: data.session_code
+         })
         return { success: true, data: data.cameras }
       } else {
         const errorData = await response.json()
         // Возвращает точную ошибку бэкенда: "no_user" или "wrong_password"
+        return { success: false, error: errorData.detail }
+      }
+    } catch (e) {
+      return { success: false, error: "server_error" }
+    }
+  },
+
+  loginBySession: async () => {
+    const currentCode = get().secretSession
+
+    // Безопасность: если кода вдруг нет, сразу выходим
+    if (!currentCode) {
+      return { success: false, error: "no_saved_session" }
+    }
+
+    try {
+      // 2. Отправляем скрытый POST-запрос на бэкенд
+      const response = await fetch("http://localhost:8000/auth/login-by-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          session_code: currentCode // Передаем код в теле, как просит бэкенд
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // 3. Если бэк сказал ОК: записываем пользователя в стейт.
+        // Переменную secretSession НЕ трогаем, она остается прежней на жестком диске.
+        set({ currentUser: data.user })
+        
+        return { success: true, data: data.cameras }
+      } else {
+        const errorData = await response.json()
+        
+        // КРИТИЧЕСКИЙ ШАГ: Если сессия в базе удалена (или не совпала),
+        // мы ОБЯЗАТЕЛЬНО стираем этот сломанный код из стейта, чтобы кнопка "Войти" исчезла.
+        set({ secretSession: null, currentUser: null })
+        
         return { success: false, error: errorData.detail }
       }
     } catch (e) {
@@ -148,5 +193,37 @@ export const useUserStore = create((set, get) => ({
     } catch (e) {
       return { success: false, error: "server_error" }
     }
+  },
+
+  // Запрос на проверку статуса сессии
+  checkSessionStatus: async () => {
+    const currentCode = get().secretSession;
+    if (!currentCode) return { success: false, error: "no_session" };
+
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/users/check-session-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_code: currentCode })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return { success: true, auth_type: data.auth_type }
+      } else {
+        return { success: false }
+      }
+    } catch (e) {
+      return { success: false }
+    }
   }
-}))
+}),
+  {
+    name: 'session_code',
+    // Этот фильтр гарантирует, что из всего огромного хранилища 
+    // на диск запишется ТОЛЬКО secretSession!
+    partialize: (state) => ({ 
+      secretSession: state.secretSession 
+    }),
+  }
+))

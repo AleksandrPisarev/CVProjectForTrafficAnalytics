@@ -2,16 +2,36 @@ import random
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, Request, status, Depends
 from database.connection import get_session
-from database.models import User
+from database.models import User, SecretSession
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from email.mime.text import MIMEText
 import aiosmtplib
-from schemas.users import UserPatchRequest, EmailConfirmRequest
+from schemas.users import UserPatchRequest, EmailConfirmRequest, CheckStatusRequest
 from .auth_router import hash_password, TEMP_VERIFICATION_CODES
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
+# Эндпоинт проверки статуса сессии
+@router.post("/check-session-status")
+async def check_session_status(
+        payload: CheckStatusRequest,
+        session: Annotated[AsyncSession, Depends(get_session)]
+):
+    # Ищем сессию в базе данных
+    query = select(SecretSession).where(SecretSession.session_code == payload.session_code)
+    result = await session.execute(query)
+    db_session = result.scalars().first()
+
+    # Если сессии нет
+    if not db_session:
+        raise HTTPException(status_code=400, detail="invalid_session")
+
+    # Возвращаем её тип: 'by_password' или 'by_session'
+    return {
+        "success": True,
+        "auth_type": db_session.auth_type
+    }
 
 # ЭНДПОИНТ 1: НАЖАТИЕ КНОПКИ «СОХРАНИТЬ»
 @router.patch("/{current_email}")

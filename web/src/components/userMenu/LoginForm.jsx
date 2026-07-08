@@ -3,13 +3,38 @@ import { useUserStore } from "@/store/useUserStore"
 import { useCameraStore } from "@/store/useCameraStore"
 
 export default function LoginForm({ setMode }) {
-    const { login, resetPassword, confirmResetPassword } = useUserStore()
+    const { login, resetPassword, confirmResetPassword, secretSession, loginBySession } = useUserStore()
     const [loginError, setLoginError] = useState("")
     const [successMessage, setSuccessMessage] = useState("")
     const [loading, setLoading] = useState(false)
+    // Стейт загрузки для сессии
+    const [sessionLoading, setSessionLoading] = useState(false)
     
     // Стейт этапа сброса пароля (0 - обычный вход, 1 - ввод кода сброса)
     const [resetStage, setResetStage] = useState(0)
+
+    const handleSessionLoginClick = async () => {
+      setSessionLoading(true)
+      // Очищаем старые ошибки перед запросом
+      setLoginError("") 
+      setLoginError("")
+      setSuccessMessage("")
+
+      const result = await loginBySession()
+
+      setSessionLoading(false)
+
+      if (!result.success) {
+        // Если сессия протухла — выводим понятную ошибку
+        if (result.error === "invalid_session") {
+          setLoginError("Вход не возможен. Введите почту и пароль.");
+        } else {
+          setLoginError("Ошибка сервера. Попробуйте позже.");
+        }
+      } else {
+          useCameraStore.setState({ cameras: result.data })
+        }
+    }
 
     const handleLoginSubmit = async (e) => {
         e.preventDefault()
@@ -176,6 +201,21 @@ export default function LoginForm({ setMode }) {
 
             {/* Блок с кнопками */}
             <div className="flex gap-3 mt-2">
+              {/* Показывается только на этапе входа (resetStage === 0) и если в Zustand есть сессия */}
+              {resetStage === 0 && secretSession && (
+                <button
+                  type="button" // Важно! type="button", чтобы форма не отправляла обычный пароль
+                  disabled={loading || sessionLoading}
+                  onClick={handleSessionLoginClick}
+                  className="w-full py-3 rounded-xl cursor-pointer transition-all
+                            bg-cyan-500/10 border border-cyan-500/30 
+                            text-cyan-400 font-black text-[10px] uppercase tracking-widest
+                            hover:bg-cyan-500/20 hover:border-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {sessionLoading ? "loading..." : "Войти"}
+                </button>
+              )}
+
               <button 
                 type="submit"
                 disabled={loading}

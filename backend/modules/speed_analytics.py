@@ -1,181 +1,221 @@
-from ultralytics import YOLO
 import numpy as np
 
 
 class SpeedAnalytics:
 
     def __init__(self, config):
-        # 1. Загрузка второй нейросети для номеров и её параметров из yaml конфига
-        self.model = YOLO(config['model_path'], task='detect')
-        self.device = config.get('device', 0)
-        self.conf = config.get('conf', 0.4)
 
         # Настройки калибровки и физические константы из конфига
-        self.REQUIRED_CARS = config.get('required_calibration_cars', 10)
-        self.REAL_PLATE_WIDTH = config.get('real_plate_width_meters', 0.52)  # ГОСТ 52 см
         self.speed_limit = config.get('speed_limit', 60)
 
-        # 2. Главный результат работы модуля — Словарь Нарушителей
+        self.filter_traffic_direction = {} # Словарь фильтрации попутного транспрта {track_id: []}
+        # Временный словарь сначало в калибровки потом в вычислении скорости
+        self.tracking_buffer = {}
+        # Словарь весов Cy по id авто
+        self.y_weights = {}
+        self.On_Off_data_Cy = False # Флаг включение выключение накопления данных для весов Cy
+        self.calibration_speed = 0
+        self.waiting_for_id = False # Флаг что сбор данных окончен и можно вводит ID авто для калибровки
+        self.is_calibrated = False  # Флаг: готова ли калибровка камеры
+
+        # Главный результат работы модуля — Словарь Нарушителей
         self.violators_dict = {}
 
-        # 3. Настройки и базы данных для процесса калибровки камеры
-        self.calibration_database = []  # Сюда собираем фокусные расстояния F
-        self.is_calibrated = False  # Флаг: готова ли калибровка камеры
-        self.focal_length = None  # Финальное фокусное расстояние (в пикселях)
+    def calculate_speed(self, obj_frame):
+        if self.y_weights is None:
+            return
 
-        # Локальная история размеров номеров для калибрующихся машин: { track_id: [width_px, ...] }
-        self.plate_history = {}
+        cars_from_frame = obj_frame.yolo_result
 
-        # 4. Уникальное внутреннее хранилище, ограниченное ОДНИМ предыдущим кадром
-        self.previous_frame = None
+        # Если машин на кадре нет, дальнейший расчет скорости не требуется
+        if not cars_from_frame:
+            return
 
-    def process(self, obj_frame):
+        self._filter_traffic_direction(obj_frame)
 
-        # Забираем легкий распарсенный список машин из ленивого @property кадра
+        for car in cars_from_frame:
+            track_id = car["id"]
+            current_y = car["box"][-1]
+            if track_id == -1:
+                continue
+
+            if (track_id in self.filter_traffic_direction and
+                self.filter_traffic_direction[track_id][0] == 'oncoming' and
+                150 <= current_y <= 1000):
+
+                current_time = obj_frame.time_stamp
+
+                if track_id not in self.tracking_buffer:
+                    # Структура: [стартовое_время, стартовый_Y, счетчик_пропадания, скорость]
+                    self.tracking_buffer[track_id] = [current_time, current_y, 0, None]
+                    continue
+
+                # Если машина уже есть в буфере — сбрасываем её счетчик пропадания обратно в 0, так как она на экране!
+                self.tracking_buffer[track_id][2] = 0
+
+                # Вытаскиваем сохраненную опорную точку из прошлого
+                past_time = self.tracking_buffer[track_id][0]
+                past_y = self.tracking_buffer[track_id][1]
+
+                if (current_time - past_time) >= 0.25:
+                    # Обертываем в int(), чтобы range() работал без ошибок
+                    y1_idx = int(round(past_y))
+                    y2_idx = int(round(current_y))
+
+                    # Переводим пиксели в метры и считаем скорость в КМ/Ч
+                    distance_meters = sum(self.y_weights[y] for y in range(y1_idx, y2_idx + 1))
+                    speed_kmh = distance_meters / (current_time - past_time) * 3.6
+                    # Текущий кадр становится новым стартом для следующего замера через 0.25 сек
+                    self.tracking_buffer[track_id] = [current_time, current_y, 0, speed_kmh]
+
+                # Записываем скорость в словарь машины для отображения на экране
+                if self.tracking_buffer[track_id][3] is not None:
+                    car['speed'] = self.tracking_buffer[track_id][3]
+
+        # Очистка буфера с запасом в 10 кадров
+        current_frame_ids = {car["id"] for car in cars_from_frame if car["id"] != -1}
+
+        for historic_id in list(self.tracking_buffer.keys()):
+            # Если машины нет на текущем кадре
+            if historic_id not in current_frame_ids:
+                # Увеличиваем счетчик пропадания
+                self.tracking_buffer[historic_id][2] += 1
+
+                # Держим трек до 10 кадров моргания нейросети!
+                if self.tracking_buffer[historic_id][2] >= 10:
+                    del self.tracking_buffer[historic_id]
+
+    def calibration(self, obj_frame):
+
+        # Если кнопка на фронтенде еще не нажата — сбор данных закрыт, уходим
+        if not self.On_Off_data_Cy or self.calibration_speed <= 0:
+            return
+
+        # Забираем легкий распарсенный список машин из @property кадра
         cars_from_frame = obj_frame.yolo_result
 
         # Если машин на кадре нет, этот кадр нам не интересен для расчетов
         if not cars_from_frame:
-            # Перед выходом перезаписываем наш список-держатель текущим кадром
-            self.previous_frame = obj_frame
             return
 
-        # ВЫРЕЗАНИЕ КРОПОВ И ПОИСК НОМЕРОВ ВТОРОЙ НЕЙРОСЕТЬЮ
-        current_frame_plates = {}  # Словарь на текущий кадр: { track_id: ширина_номера_в_пикселях }
+        self._filter_traffic_direction(obj_frame)
 
         for car in cars_from_frame:
             track_id = car["id"]
-            x1, y1, x2, y2 = map(int, car["box"])  # Координаты машины на большом экране
 
             if track_id == -1:
                 continue  # Пропускаем машины, которые трекер временно потерял
 
-            # Вырезаем область машины из большой матрицы изображения (кроп)
-            car_crop = obj_frame.image[y1:y2, x1:x2]
-            if car_crop.size == 0:
+            # Проверка что авто является встречным а не попутным
+            if track_id in self.filter_traffic_direction and self.filter_traffic_direction[track_id][0] == 'oncoming':
+
+                current_time = obj_frame.time_stamp
+                current_y = car["box"][-1]
+
+                if track_id not in self.tracking_buffer:
+                    self.tracking_buffer[track_id] = [current_time, current_y]
+                    continue
+
+                past_time, past_y = self.tracking_buffer[track_id]
+
+                if current_y - past_y >= 100:
+                    # Узнаем реальные метры за время current_time - past_time
+                    distance_meters = (self.calibration_speed /3.6) * (current_time - past_time)
+
+                    # Находим вес пикселя Cy: метры делим на пройденные пиксели
+                    Cy = distance_meters / (current_y - past_y)
+
+                    # Находим тот самый средний пиксель микро-шага
+                    y_mid = (past_y + current_y) / 2
+
+                    # Создаем пустой список под этот конкретный ID, если его еще нет в базе
+                    if track_id not in self.y_weights:
+                        self.y_weights[track_id] = []
+
+                    # Записываем пару [Y, Cy] строго в ячейку этого автомобиля!
+                    self.y_weights[track_id].append([y_mid, Cy])
+
+                    # Текущий кадр становится новым стартом для следующего шага
+                    self.tracking_buffer[track_id] = [current_time, current_y]
+
+    def _filter_traffic_direction(self, obj_frame):
+        """Функция фильтрации попутного и встречного автотранспорта"""
+        for car in obj_frame.yolo_result:
+            track_id = car["id"]
+            if track_id == -1:
                 continue
 
-            # Запускаем вторую нейросеть ONNX строго по кропу автомобиля
-            # Нам не нужны трекинг и буфер для номеров, только чистый detect!
-            plate_results = self.model.predict(
-                source=[car_crop],
-                imgsz=320,  # Для маленького кропа номера 320x320 — за глаза
-                conf=self.conf,
-                device=self.device,
-                verbose=False
-            )
+            current_y = car["box"][-1]
 
-            for result in plate_results:
-                if result.boxes is not None and len(result.boxes) > 0:
-                    # Берем самый первый найденный номер внутри кропа машины
-                    px1, py1, px2, py2 = result.boxes.xyxy[0].cpu().numpy()
-                    current_frame_plates[track_id] = px2 - px1
-                    break
+            # Если машины нет в словаре — инициализируем список: [стартовый_y, статус, счетчик_кадров]
+            if track_id not in self.filter_traffic_direction:
+                self.filter_traffic_direction[track_id] = ['undefined', 0, current_y]
 
-        # РАЗДЕЛЕНИЕ НА КАЛИБРОВКУ И ВЫЧИСЛЕНИЕ СКОРОСТИ
-        # Часть А: Камера еще не готова — собираем данные F по первым 10 машинам
-        if not self.is_calibrated:
-            self._run_calibration(current_frame_plates)
+            # Если машина уже есть
+            else:
+                # Если она вернулась после пропадания — сбрасываем счетчик пропадания обратно в 0!
+                self.filter_traffic_direction[track_id][1] = 0
 
-        # Часть Б: Калибровка готова — вычисляем скорость и ведем violators_dict
-        else:
-            if self.previous_frame is None or not self.previous_frame.yolo_result:
-                # Сравнивать не с чем. Запоминаем текущий кадр как прошлый и выходим ждать следующий такт.
-                obj_frame.detected_plates_widths = current_frame_plates
-                self.previous_frame = obj_frame
-                return
+                # Если статус до сих пор 'undefined', проверяем вектор движения по пикселям
+                if self.filter_traffic_direction[track_id][0] == 'undefined':
+                    delta_y = current_y - self.filter_traffic_direction[track_id][2]
 
-            # КАЛИБРОВКА ГОТОВА — ВЫЧИСЛЯЕМ СКОРОСТЬ КМ/Ч
-            # ПЕРВОСТЕПЕННАЯ ПРОВЕРКА УЕХАВШИХ МИМО 3 МЕТРОВ НАРУШИТЕЛЕЙ
-            for violator_id in list(self.violators_dict.keys()):
-                if violator_id not in current_frame_plates:
-                    # Машина была в нарушителях, но исчезла с кадра -> СОБЫТИЕ!
-                    print(f"[🔥 СОБЫТИЕ: ПРОСКОК 3М] Авто ID {violator_id} улетело из кадра! "
-                          f"Нарушение зафиксировано по лучшим архивным кадрам.")
-                    # Закрываем дело, сохраняем в базу нарушений и чистим ОЗУ
-                    del self.violators_dict[violator_id]
-
-            # Перебираем машины, которые сейчас физически есть на кадре
-            for track_id, w_new in current_frame_plates.items():
-
-                # ПРОВЕРКА ПОЯВЛЕНИЯ АВТО
-                if track_id not in self.previous_frame.detected_plates_widths:
-                    continue  # Только появилась, скорость не посчитать. Ждем следующий кадр.
-
-                # Авто стабильно едет — ВЫЧИСЛЯЕМ ТЕКУЩУЮ СКОРОСТЬ И ДИСТАНЦИЮ
-                w_past = self.previous_frame.detected_plates_widths[track_id]
-                distance_past = (self.REAL_PLATE_WIDTH * self.focal_length) / w_past
-                distance_new = (self.REAL_PLATE_WIDTH * self.focal_length) / w_new
-
-                delta_S = distance_past - distance_new
-                delta_t = obj_frame.time_stamp - self.previous_frame.time_stamp
-
-                if delta_t <= 0:
-                    continue
-                current_speed = int((delta_S / delta_t) * 3.6)
-
-                # АВТО УЖЕ ЕСТЬ В СЛОВАРЕ НАРУШИТЕЛЕЙ
-                if track_id in self.violators_dict:
-
-                    # Проверяем расстояние (Штатный финиш событийной модели)
-                    if distance_new <= 3.0:
-                        print(f"[ШТАТНОЕ СОБЫТИЕ] Авто ID {track_id} доехало до отметки 3м. "
-                              f"Фиксация завершена. Данные отправлены в архив.")
-                        del self.violators_dict[track_id]  # Очищаем ОЗУ
-
-                    # Машина еще далеко (distance_new > 3.0) — работаем со скоростью
-                    else:
-                        if current_speed > self.violators_dict[track_id]["speed"]:
-                            # Скорость выросла — переписываем ВСЁ (скорость, макс_кадр, ласт_кадр)
-                            self.violators_dict[track_id]["speed"] = current_speed
-                            self.violators_dict[track_id]["frame_max_speed"] = obj_frame
-                            self.violators_dict[track_id]["last_frame"] = obj_frame
+                    # Проверяем, преодолела ли машина порог в 15 пикселей во избежание шумов
+                    if abs(delta_y) >= 15:
+                        if delta_y > 0:
+                            # Встречная! Меняем статус, а стартовый Y удаляем (оставляем только 2 элемента)
+                            self.filter_traffic_direction[track_id] = ['oncoming', 0]
                         else:
-                            # Скорость упала или такая же — переписываем ТОЛЬКО последний кадр
-                            self.violators_dict[track_id]["last_frame"] = obj_frame
+                            # Попутная!
+                            self.filter_traffic_direction[track_id] = ['passing', 0]
 
-                # АВТО ЕЩЕ НЕТ В СЛОВАРЕ НАРУШИТЕЛЕЙ
-                else:
-                    if current_speed > self.speed_limit:
-                        # Скорость превышена! Проверяем твою отсечку по расстоянию
-                        if distance_new > 3.0:
-                            # Машина далеко, фиксируем и заносим в violators_dict
-                            self.violators_dict[track_id] = {
-                                "speed": current_speed,
-                                "frame_max_speed": obj_frame,
-                                "last_frame": obj_frame
-                            }
-                            print(f"[НОВЫЙ НАРУШИТЕЛЬ] Авто ID {track_id} | Скорость: {current_speed} км/ч")
+        # Очистка уехавших машин
+        for historic_id in list(self.filter_traffic_direction.keys()):
+            # Если машины нет на текущем кадре
+            if historic_id not in [car["id"] for car in obj_frame.yolo_result]:
+                # Увеличиваем счетчик пропадания конкретно для этого ID
+                self.filter_traffic_direction[historic_id][1] += 1
+                # Если машина отсутствует уже больше 3 кадров — окончательно удаляем её
+                if self.filter_traffic_direction[historic_id][1] >= 3:
+                    del self.filter_traffic_direction[historic_id]
 
-        # ОБНОВЛЕНИЕ ХРАНИЛИЩА (Перезапись)
-        obj_frame.detected_plates_widths = current_frame_plates
-        self.previous_frame = obj_frame
+    def _build_y_pixel_map(self, car_id):
+        """
+            Финальный расчет калибровки. Строит непрерывную математическую кривую перспективы
+            по накопленному облаку точек и генерирует идеальную карту весов для ВСЕХ пикселей кадра (от 0 до 1080).
+        """
 
-    def _run_calibration(self, current_frame_plates):
-        """Внутренняя функция калибровки (Часть А)"""
-        for track_id, current_w in current_frame_plates.items():
-
-            if track_id not in self.plate_history:
-                self.plate_history[track_id] = []
-            self.plate_history[track_id].append(current_w)
-
-            w_first = self.plate_history[track_id][0]
-            w_last = self.plate_history[track_id][-1]
-
-            # Если номер на экране вырос (машина едет к камере и приближается)
-            if w_last - w_first > 15:
-                # Рассчитываем фокусное расстояние F для этой конкретной машины
-                calculated_f = (w_first * w_last * 100) / (w_last - w_first)
-                self.calibration_database.append(calculated_f)
-
-                print(
-                    f"[Калибровка] Машина ID {track_id} обсчитана. Успешно: {len(self.calibration_database)}/{self.REQUIRED_CARS}")
-
-                # Очищаем историю этой машины, чтобы не гонять её по кругу
-                del self.plate_history[track_id]
-
-        # Если набрали базу из 10 стабильных машин — закрываем калибровку
-        if len(self.calibration_database) >= self.REQUIRED_CARS:
-            self.focal_length = np.median(self.calibration_database)
+        # Проверяем, ввели ли правильный ID и накопились ли по нему точки
+        if car_id not in self.y_weights or len(self.y_weights[car_id]) < 3:
             self.is_calibrated = True
-            print(f"\n[КАЛИБРОВКА ЗАВЕРШЕНА] Геометрия линзы зафиксирована! Фокус F = {self.focal_length:.2f}\n")
+            self.tracking_buffer.clear()
+            self.y_weights = None
+            print(f"[Ошибка калибровки] Данные по ID {car_id} не найдены или точек слишком мало!")
+            return False
+
+        # Разделяем облако точек на два массива чисел
+        # Y_point — это координаты Y на экране, Y_weights — это соответствующие им веса Cy
+        Y_point = np.array([point[0] for point in self.y_weights[car_id] if point[0] <= 1000])
+        Y_weights = np.array([point[1] for point in self.y_weights[car_id] if point[0] <= 1000])
+
+        # Сортируем безопасные точки сверху вниз (по возрастанию Y)
+        sort_indices = np.argsort(Y_point)
+        Y_point_sorted = Y_point[sort_indices]
+        Y_weights_sorted = Y_weights[sort_indices]
+
+        # Сглаживаем шумы: веса должны строго убывать сверху вниз
+        Y_weights_smoothed = np.minimum.accumulate(Y_weights_sorted)
+
+        # Интерполируем веса для каждой из 1080 строк экрана
+        all_y = np.arange(1080)
+        interpolated_values = np.interp(all_y, Y_point_sorted, Y_weights_smoothed)
+
+        # Перезаписываем словарь весов для функции calculate_speed
+        self.y_weights = {y: float(interpolated_values[y]) for y in range(1080)}
+
+        self.is_calibrated = True
+        self.tracking_buffer.clear()
+
+        print(f" [АВТОКАЛИБРОВКА УСПЕШНО ЗАВЕРШЕНА] ")
+
+        return True

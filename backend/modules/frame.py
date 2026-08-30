@@ -8,7 +8,6 @@ class Frame:
     _time_stamp: float
     _yolo_result: Any = None
     _parsed_yolo_result: Any = None
-    _detected_plates_widths = {}
 
     @property
     def image(self):
@@ -21,6 +20,10 @@ class Frame:
     @property
     def time_stamp(self):
         return self._time_stamp
+
+    @time_stamp.setter
+    def time_stamp(self, value):
+        self._time_stamp = value
 
     @property
     def yolo_result(self):
@@ -50,11 +53,3 @@ class Frame:
     @yolo_result.setter
     def yolo_result(self, value):
         self._yolo_result = value
-
-    @property
-    def detected_plates_widths(self):
-        return self._detected_plates_widths
-
-    @detected_plates_widths.setter
-    def detected_plates_widths(self, value):
-        self._detected_plates_widths = value

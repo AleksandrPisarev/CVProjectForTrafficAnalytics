@@ -200,11 +200,12 @@ export default function LoginForm({ setMode }) {
             )}
 
             {/* Блок с кнопками */}
-            <div className="flex gap-3 mt-2">
-              {/* Показывается только на этапе входа (resetStage === 0) и если в Zustand есть сессия */}
+            <div className="flex flex-col gap-3 mt-4">
+              
+              {/* КНОПКА: Войти по сессии */}
               {resetStage === 0 && secretSession && (
                 <button
-                  type="button" // Важно! type="button", чтобы форма не отправляла обычный пароль
+                  type="button"
                   disabled={loading || sessionLoading}
                   onClick={handleSessionLoginClick}
                   className="w-full py-3 rounded-xl cursor-pointer transition-all
@@ -212,30 +213,33 @@ export default function LoginForm({ setMode }) {
                             text-cyan-400 font-black text-[10px] uppercase tracking-widest
                             hover:bg-cyan-500/20 hover:border-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {sessionLoading ? "loading..." : "Войти"}
+                  {sessionLoading ? "loading..." : "Войти автоматически"}
                 </button>
               )}
 
-              <button 
-                type="submit"
-                disabled={loading}
-                className="flex-1 py-3 rounded-xl cursor-pointer transition-all
-                            bg-white/5 border border-white/10 
-                            text-cyan-400 font-black text-[10px] uppercase tracking-widest
-                            hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-40 disabled:cursor-not-allowed">
-                {loading ? "Загрузка..." : (resetStage === 1 ? "Подтвердить код" : "Авторизоваться")}
-              </button>
-              
-              <button 
-                type="button"
-                disabled={loading}
-                onClick={() => resetStage === 1 ? setResetStage(0) : setMode("register")}
-                className="flex-1 py-3 rounded-xl cursor-pointer transition-all
-                            bg-white/5 border border-white/10 
-                            text-cyan-400 font-black text-[10px] uppercase tracking-widest
-                            hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-40">
-                {resetStage === 1 ? "Отмена" : "Регистрация"}
-              </button>
+              {/* КНОПКИ: Авторизоваться и Регистрация */}
+              <div className="flex flex-col gap-2">
+                <button 
+                  type="submit"
+                  disabled={loading || sessionLoading}
+                  className="w-full py-3 rounded-xl cursor-pointer transition-all
+                              bg-white/5 border border-white/10 
+                              text-cyan-400 font-black text-[10px] uppercase tracking-widest
+                              hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-40 disabled:cursor-not-allowed">
+                  {loading ? "Загрузка..." : (resetStage === 1 ? "Подтвердить код" : "Авторизоваться по паролю")}
+                </button>
+                
+                <button 
+                  type="button"
+                  disabled={loading || sessionLoading}
+                  onClick={() => resetStage === 1 ? setResetStage(0) : setMode("register")}
+                  className="w-full py-3 rounded-xl cursor-pointer transition-all
+                              bg-white/5 border border-white/10 
+                              text-cyan-400 font-black text-[10px] uppercase tracking-widest
+                              hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-40">
+                  {resetStage === 1 ? "Отмена" : "Регистрация аккаунта"}
+                </button>
+              </div>
             </div>
         </form>
     )

@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { Eye, EyeOff, X, AlertCircle } from 'lucide-react'
 import { useCameraStore } from "@/store/useCameraStore"
 
-export default function CameraStream({ ip }) {
+export default function CameraStream({ ip, metrics }) {
   const [isLoaded, setIsLoaded] = useState(false)
-   const [error, setError] = useState(null)
+  const [error, setError] = useState(null)
 
-   // Локальное реактивное состояние для переключения цвета одной конкретной кнопки
+  // Локальное реактивное состояние для переключения цвета одной конкретной кнопки
   const [isAiActive, setIsAiActive] = useState(false)
   
   // Каждое открытие компонента гарантированно получает СВЕЖИЙ уникальный таймстамп!
@@ -14,6 +14,9 @@ export default function CameraStream({ ip }) {
   
   const { cameras, setActiveCamera } = useCameraStore() 
   const cameraName = cameras.find(cam => cam.ip === ip)?.name || ip
+
+  // Вычисление статуса калибровки
+  const isCalibrated = metrics[ip]?.is_calibrated
   
   // Если поменялся IP — просто сбрасываем флаг загрузки и обновляем ссылку
   useEffect(() => {
@@ -68,7 +71,7 @@ export default function CameraStream({ ip }) {
       })
       
       if (response.ok) {
-        setActiveCamera(ip) // Твой метод из Zustand уберет камеру с экрана
+        setActiveCamera(ip) // Метод из Zustand уберет камеру с экрана
       } else {
         const errData = await response.json()
         setError(errData.detail || "Ошибка при остановке камеры")
@@ -98,6 +101,12 @@ export default function CameraStream({ ip }) {
           Подключение к {cameraName}...
         </p>
       </div>
+
+      {isAiActive && !isCalibrated && (metrics[ip]?.On_Off_data_Cy || metrics[ip]?.waiting_for_id) && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-red-500/90 text-white font-mono text-[10px] font-black tracking-wider uppercase px-3 py-1.5 rounded-full border border-red-400/20 shadow-xl z-20 animate-pulse pointer-events-none">
+          Идет автокалибровка камеры
+        </div>
+      )}
 
       <img 
         src={streamUrl} 

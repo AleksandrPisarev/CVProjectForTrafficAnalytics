@@ -62,8 +62,8 @@ class Rendering:
 
         # Параметры шрифта для минималистичного дизайна
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.65
-        thickness_text = 2  # Тонкий современный шрифт
+        font_scale = 0.8
+        thickness_text = 1  # Тонкий современный шрифт
         thickness_line = 1  # Тонкие линии для сносок
 
         for car in res:
@@ -75,8 +75,15 @@ class Rendering:
             color = CLASS_COLORS.get(cls_index, DEFAULT_COLOR)
 
             # Формируем текст
-            if obj_id != -1:
+            # 1. Если скорость уже посчитана модулем аналитики
+            if 'speed' in car:
+                label = f"{class_name}: {car['speed']:.1f} km/h"
+
+            # 2. Если скорость еще не посчитана (идет автокалибровка), выводим ID
+            elif obj_id != -1:
                 label = f"{class_name}:{obj_id % 1000}"
+
+            # 3. На случай, если машина без ID и без скорости
             else:
                 label = f"{class_name}"
 
@@ -98,9 +105,6 @@ class Rendering:
             # Точка конца полочки (ведем линию влево на длину текста + небольшой запас)
             p_end = (p_bend[0] - text_w - 5, p_bend[1])
 
-            # 3. Считаем размер жирного текста для правильного отступа полочки
-            (text_w, text_h), _ = cv2.getTextSize(label, font, font_scale, thickness_text)
-
             # Рисуем линии сноски
             cv2.line(img, p_start, p_bend, color, thickness=thickness_line, lineType=cv2.LINE_AA)
             cv2.line(img, p_bend, p_end, color, thickness=thickness_line, lineType=cv2.LINE_AA)
@@ -109,7 +113,7 @@ class Rendering:
             text_x = p_end[0] + 2
             text_y = p_bend[1] - 6 if offset_y < 0 else p_bend[1] + text_h + 6
 
-            # ТЕПЕРЬ ЧИСТЫЙ ЖИРНЫЙ ЧЕРНЫЙ ТЕКСТ
+            # ТЕПЕРЬ ЧИСТЫЙ ЧЕРНЫЙ ТЕКСТ
             cv2.putText(
                 img,
                 label,
@@ -118,7 +122,7 @@ class Rendering:
                 font_scale,
                 (0, 0, 0),  # Чистый черный цвет text
                 thickness_text,
-                cv2.LINE_AA  # Сглаживание линий букв
+                lineType=cv2.LINE_AA  # Сглаживание линий букв
             )
 
         return img

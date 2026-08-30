@@ -2,10 +2,11 @@ import threading
 import queue
 import time
 import cv2
+import copy
 from modules.capture import Frame_capture
 from modules.rendering import Rendering
 from modules.detection_tracking import DetectionTracking
-
+from modules.speed_analytics import SpeedAnalytics
 
 class CameraSession:
     def __init__(self, config, url: str, id: str):
@@ -21,9 +22,11 @@ class CameraSession:
 
         self.rendering = Rendering(config['rendering'])
         self.detection = DetectionTracking(config['detection'])
+        self.speed_analytics = SpeedAnalytics(config['speed_analytics'])
 
         self.raw_queue = queue.Queue(maxsize=1)
         self.render_queue = queue.Queue(maxsize=1)
+        self.speed_analytics_queue = queue.Queue()
         self.latest_frame = None
 
         self.live_stats = {"fps": 0, "auto": 0}
@@ -32,6 +35,7 @@ class CameraSession:
         self.read_thread = None
         self.detection_thread  = None
         self.render_thread = None
+        self.speed_analytics_thread = None
 
     def process_run(self):
         """Включает флаг и запускает фоновые потоки. Отрабатывает мгновенно."""
@@ -41,11 +45,13 @@ class CameraSession:
         self.read_thread = threading.Thread(target=self._flow_read, daemon=True)
         self.detection_thread = threading.Thread(target=self._flow_detection, daemon=True)
         self.render_thread = threading.Thread(target=self._flow_rendering, daemon=True)
+        self.speed_analytics_thread = threading.Thread(target=self._flow_speed_analytics, daemon=True)
 
         # Запускаем их
         self.read_thread.start()
         self.detection_thread.start()
         self.render_thread.start()
+        self.speed_analytics_thread.start()
 
         print(f"[Session {self.id}] Потоки захвата и рендеринга успешно запущены и взяты на контроль.")
 
@@ -55,6 +61,9 @@ class CameraSession:
 
         # Получаем итератор
         frame_generator = self.capture.process()
+
+        # Локальный счетчик кадров для виртуальной метки времени файла
+        frame_index = 0
 
         # Читаем кадры из модуля capture
         while self.is_running:
@@ -83,6 +92,9 @@ class CameraSession:
 
             # Функция замедляющая чтение кадров из файла имитирующая поток из камеры
             if "demo" in self.id:
+                # Перезаписываем таймстамп строго на жесткое виртуальное время файла
+                # obj_frame.time_stamp = frame_index * (1.0 / self.fps)
+                # frame_index += 1
                 self.__apply_camera_fps(start_time)
 
         print(f"[Поток Чтения {self.id}] ЗАВЕРШИЛ РАБОТУ.")
@@ -163,10 +175,20 @@ class CameraSession:
                 break
 
             try:
-                # 1. Передаем объект кадра в модуль рендеринга.
-                # Внутри модуля метод .process() берет obj_frame.yolo_result,
-                # отрисовывает рамки, считает FPS и возвращает чистую картинку (массив numpy).
-                annotated_image = self.rendering.process(obj_frame)
+                # Если калибровка ГОТОВА — считаем скорость прямо здесь, в потоке рендеринга!
+                # Расчет запишет 'speed' в car, и метод process ниже сразу отрисует её на экране
+                if self.speed_analytics.is_calibrated:
+                    self.speed_analytics.calculate_speed(obj_frame)
+
+                    # Передаем объект кадра в модуль рендеринга.
+                    # Внутри модуля метод .process() берет obj_frame.yolo_result,
+                    # отрисовывает рамки, считает FPS и возвращает чистую картинку (массив numpy).
+                    annotated_image = self.rendering.process(obj_frame)
+                else:
+                    annotated_image = self.rendering.process(obj_frame)
+                    # Отправляем ссылку на кадр в очередь скорости ТОЛЬКО если ИИ включен пользователем
+                    if self.is_AI_active:
+                        self.speed_analytics_queue.put(obj_frame)
 
                 # 2. Сохраняем размеченную картинку в переменную для FastAPI.
                 # Перезапись ссылки на объект в Python атомарна, замки (Lock) не нужны.
@@ -221,12 +243,71 @@ class CameraSession:
 
         print(f"[Generator {self.id}] Сетевой генератор полностью уничтожен.")
 
+    def _flow_speed_analytics(self):
+        """ПОТОК 4: Параллельный расчет скорости через кольцевой буфер deque"""
+        print(f"[Поток Аналитики Скорости {self.id}] НАЧАЛО РАБОТЫ")
+        while self.is_running:
+            # Если ИИ выключен пользователем на фронтенде
+            if not self.is_AI_active:
+                # Если в буфере что-то осталось с момента выключения — мгновенно чистим,
+                # чтобы освободить оперативную память (ОЗУ) от тяжелых картинок
+                if self.speed_analytics_queue.qsize() > 0:
+                    # Подстраховка чтобы при выключении а потом включении AI веса автоматически не накапливались в словаре
+                    self.speed_analytics.On_Off_data_Cy = False
+                    # Очистка очереди queue.Queue
+                    while not self.speed_analytics_queue.empty():
+                        try:
+                            self.speed_analytics_queue.get_nowait()
+                            self.speed_analytics_queue.task_done()
+                        except queue.Empty:
+                            break
+
+                # Поток уходит в глубокий сон на 100 миллисекунд и ждет, пока пользователь включит ИИ
+                time.sleep(0.1)
+                continue
+
+            # АВТОНОМНОЕ ЗАВЕРШЕНИЕ ПОТОКА ПОСЛЕ УСПЕШНОЙ КАЛИБРОВКИ
+            if self.speed_analytics.is_calibrated:
+                # 1. Мгновенно чистим очередь от зависших в ней тяжелых картинок
+                if self.speed_analytics_queue.qsize() > 0:
+                    # Очистка очереди queue.Queue
+                    while not self.speed_analytics_queue.empty():
+                        try:
+                            self.speed_analytics_queue.get_nowait()
+                            self.speed_analytics_queue.task_done()
+                        except queue.Empty:
+                            break
+                # 2. Выходим из главного цикла, чтобы поток полностью завершил работу
+                break
+
+            # ИИ активен! Проверяем, есть ли кадры в очереди
+            if not self.speed_analytics_queue:
+                # Если буфер пустой — микро-сон на 1 миллисекунду, чтобы не грузить ядро процессора
+                time.sleep(0.001)
+                continue
+
+            # Забираем самый старый доступный кадр из начала буфера
+            obj_frame = self.speed_analytics_queue.get()
+
+            # Маркер полной остановки сессии камеры
+            if obj_frame == "stop":
+                break
+
+            try:
+                # Запускаем калибровку
+                self.speed_analytics.calibration(obj_frame)
+            except Exception as e:
+                print(f"[Analytics Error {self.id}] Ошибка калибровки: {e}")
+
+        print(f"[Session {self.id}] Поток Аналитики Скорости успешно завершен.")
+
     def release(self):
         """Полностью тушит камеру и освобождает ресурсы (3-поточная схема)"""
         print(f"[Session {self.id}] Запущена процедура полной остановки сессии...")
 
         # 1. Переключаем флаг в False, чтобы бесконечные циклы потоков завершились
         self.is_running = False
+        self.is_AI_active = False
 
         # 2. ВЫБИВАЕМ ПОТОК ДЕТЕКЦИИ ИЗ ЗАВИСАНИЯ:
         try:
@@ -241,7 +322,7 @@ class CameraSession:
         except Exception as e:
             print(f"[Session {self.id}] Ошибка отправки 'stop' в raw_queue: {e}")
 
-        # ВЫБИВАЕМ ПОТОК РЕНДЕРИНГА ИЗ ЗАВИСАНИЯ:
+        # 3. ВЫБИВАЕМ ПОТОК РЕНДЕРИНГА ИЗ ЗАВИСАНИЯ:
         try:
             # Очищаем очередь, если она полная, чтобы "stop" гарантированно поместился
             if self.render_queue.full():
@@ -254,7 +335,22 @@ class CameraSession:
         except Exception as e:
             print(f"[Session {self.id}] Ошибка отправки 'stop' в render_queue: {e}")
 
-        # 3. Вызываем встроенный метод очистки модуля capture (закрываем OpenCV / RTSP сессию)
+        # 4. ВЫБИВАЕМ ПОТОК АНАЛИТИКИ СКОРОСТИ ИЗ ЗАВИСАНИЯ:
+        try:
+            if self.speed_analytics_queue.qsize() > 0:
+                # Очистка очереди queue.Queue
+                while not self.speed_analytics_queue.empty():
+                    try:
+                        self.speed_analytics_queue.get_nowait()
+                        self.speed_analytics_queue.task_done()
+                    except queue.Empty:
+                        break
+            # Кладем маркер "stop", который заставит цикл while True в аналитике завершиться
+            self.speed_analytics_queue.put("stop")
+        except Exception as e:
+            print(f"[Session {self.id}] Ошибка отправки 'stop' в speed_analytics_queue: {e}")
+
+        # 5. Вызываем встроенный метод очистки модуля capture (закрываем OpenCV / RTSP сессию)
         if hasattr(self, 'capture') and self.capture is not None:
             try:
                 self.capture.release()
@@ -262,7 +358,7 @@ class CameraSession:
             except Exception as e:
                 print(f"[Session Error {self.id}] Ошибка при закрытии capture: {e}")
 
-        # 4. АРГУМЕНТИРОВАННАЯ ЗАЩИТА: Жестко дожидаемся физической смерти ВСЕХ 3-Х ПОТОКОВ в памяти
+        # 6. АРГУМЕНТИРОВАННАЯ ЗАЩИТА: Жестко дожидаемся физической смерти ВСЕХ 3-Х ПОТОКОВ в памяти
         # Ждем закрытия каждого потока максимум 1 секунду, чтобы не подвесить всё приложение
 
         # Поток 1: Чтение
@@ -276,6 +372,11 @@ class CameraSession:
         # Поток 3: Рендеринг
         if hasattr(self, 'render_thread') and self.render_thread.is_alive():
             self.render_thread.join(timeout=1.0)
+
+        # Поток 4: Аналитика скорости
+        if hasattr(self, 'speed_analytics_thread') and self.speed_analytics_thread.is_alive():
+            # Просто ждем закрытия потока максимум 1 секунду
+            self.speed_analytics_thread.join(timeout=1.0)
 
         print(f"[Session {self.id}] Все ресурсы и потоки камеры успешно освобождены.")
 

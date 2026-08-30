@@ -31,4 +31,7 @@ email:
   smtp_port: 587                                 # Стандартный защищенный SSL-порт
   sender_email: "aleksandrpisarev555@gmail.com"
   sender_password: "jgzfuywquwhaezrf"            # Пароль
+
+speed_analytics:
+  speed_limit: 60                              # Предельная разрешенная скорость на участке (км/ч)
 #---------------------------------------------------------------------------------------------------

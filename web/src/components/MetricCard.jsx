@@ -55,7 +55,9 @@ export default function MetricCard({ title, type, unit, icon: Icon, metrics }) {
               <span className="text-xl font-black text-white">
                 {type === 'fps' 
                   ? (metrics[ip]?.[type] || 0).toFixed(1) 
-                  : (metrics[ip]?.[type] || 0)
+                  : type === 'auto'
+                    ? (metrics[ip]?.[type] || 0)
+                    : 0
                 }
               </span>
               {unit && <span className="text-[9px] font-black text-sky-500 uppercase opacity-90">{unit}</span>}

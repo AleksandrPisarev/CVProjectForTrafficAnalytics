@@ -32,7 +32,7 @@ export default function UserDashboard({ setMode }) {
         setIsProfileOpen(true)
       } else {
         // Если автоматически по сессии — выводим текст предупреждения
-        setStatusError("Это действие разрешено только при входе через пароль!")
+        setStatusError("Действие разрешено только при входе по паролю")
       }
     } else {
       setStatusError("Сессия недействительна. Перезайдите в аккаунт.")
@@ -91,7 +91,7 @@ export default function UserDashboard({ setMode }) {
 
         {/* Текст предупреждения, если у пользователя нет прав */}
         {statusError && (
-          <p className="px-4 py-1.5 text-[10px] text-amber-400 font-bold uppercase tracking-wide leading-relaxed bg-amber-500/5 border-y border-amber-500/10 animate-pulse">
+          <p className="px-4 py-1.5 text-[8.5px] text-red-400 font-bold uppercase tracking-wide leading-relaxed bg-red-500/5 border-y border-red-500/10 animate-pulse">
             {statusError}
           </p>
         )}

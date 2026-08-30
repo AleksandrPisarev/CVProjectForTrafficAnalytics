@@ -5,6 +5,7 @@ import { useCameraStore } from "@/store/useCameraStore"
 import CameraSelector from '@/components/CameraSelector'
 import AddCamera from '@/components/addCamera/AddCamera'
 import CameraStream from '@/components/CameraStream'
+import AiControlCard from "@/components/AiControlCard"
 
 export default function Home() {
   const { activeCamera } = useCameraStore()
@@ -76,7 +77,7 @@ export default function Home() {
             /* СЕТКА С КАМЕРАМИ */
             <div className={`grid gap-4 w-full h-fit ${getGridLayoutClass()}`}>
               {activeCamera.map((cameraIp) => (
-                <CameraStream key={cameraIp} ip={cameraIp} />
+                <CameraStream key={cameraIp} ip={cameraIp} metrics={metrics} />
               ))}
             </div>
           )}
@@ -88,6 +89,12 @@ export default function Home() {
           {statsTemplate.map((item, index) => (
             <MetricCard key={index} {...item} />
           ))}
+
+          {/* ОДНА компактная карточка для всех ИИ-камер */}
+          <AiControlCard 
+            activeCamera={activeCamera} 
+            metrics={metrics} 
+          />
         </aside>
       </div>
     </div>

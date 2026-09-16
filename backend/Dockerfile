@@ -27,6 +27,10 @@ COPY requirements.txt .
 RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
     pip3 install --no-cache-dir -r requirements.txt
 
+# ХИТРОСТЬ: Принудительно скачиваем ONNX-модель номеров РФ прямо в процессе сборки образа.
+# Модель весит всего 5 МБ, она скачается и зашьётся внутрь образа навсегда!
+RUN python -c "from fast_plate_ocr import LicensePlateRecognizer; LicensePlateRecognizer('cct-s-v2-global-model', device='cpu')"
+
 COPY . .
 
 CMD ["python", "main.py"]

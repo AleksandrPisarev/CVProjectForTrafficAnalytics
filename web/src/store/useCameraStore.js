@@ -107,6 +107,15 @@ export const useCameraStore = create((set, get) => ({
         return data.message || `Не удалось сохранить скорость`
       }
 
+      set((state) => ({
+      cameras: state.cameras.map((camera) => 
+        // Находим нужную камеру по IP и дописываем ей поле max_speed
+        camera.ip === cameraIp 
+          ? { ...camera, max_speed: parseInt(maxSpeed, 10) } 
+          : camera
+        )
+      }))
+
       return null
 
     } catch (err) { return 'Ошибка сети: сервер недоступен' }

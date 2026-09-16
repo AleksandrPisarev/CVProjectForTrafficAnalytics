@@ -3,10 +3,7 @@ import numpy as np
 
 class SpeedAnalytics:
 
-    def __init__(self, config):
-
-        # Настройки калибровки и физические константы из конфига
-        self.speed_limit = config.get('speed_limit', 60)
+    def __init__(self):
 
         self.filter_traffic_direction = {} # Словарь фильтрации попутного транспрта {track_id: []}
         # Временный словарь сначало в калибровки потом в вычислении скорости
@@ -17,9 +14,6 @@ class SpeedAnalytics:
         self.calibration_speed = 0
         self.waiting_for_id = False # Флаг что сбор данных окончен и можно вводит ID авто для калибровки
         self.is_calibrated = False  # Флаг: готова ли калибровка камеры
-
-        # Главный результат работы модуля — Словарь Нарушителей
-        self.violators_dict = {}
 
     def calculate_speed(self, obj_frame):
         if self.y_weights is None:

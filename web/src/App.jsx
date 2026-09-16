@@ -31,10 +31,13 @@ export default function App() {
         <div style={{ display: location.pathname === '/' ? 'block' : 'none' }}>
           <Home />
         </div>
+        <div style={{ display: location.pathname === '/documents' ? 'block' : 'none' }}>
+          <Documents />
+        </div>
         <Routes>
           <Route path="/" element={null} />
+          <Route path="/documents" element={null} />
           <Route path="/analytics" element={<Analytics />} />
-          <Route path="/documents" element={<Documents />} />
         </Routes>
       </main>
     </>

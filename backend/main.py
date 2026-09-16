@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from modules.session_manager import SessionManager
 from contextlib import asynccontextmanager
-from routers import camera_router, stream_router, auth_router, users_router, calibration_router
+from routers import camera_router, stream_router, auth_router, users_router, calibration_router, violators_router
 from database import connection
 from database.models import Base
 
@@ -53,6 +53,7 @@ app.include_router(stream_router.router)
 app.include_router(auth_router.router)
 app.include_router(users_router.router)
 app.include_router(calibration_router.router)
+app.include_router(violators_router.router)
 
 
 @hydra.main(version_base=None, config_path='configs', config_name='config')

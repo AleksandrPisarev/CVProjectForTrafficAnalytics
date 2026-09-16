@@ -95,7 +95,7 @@ async def save_max_speed(data: calib.SaveMaxSpeedRequest, request: Request):
     # 2. Записываем лимит скорости в поле вашего аналитического объекта
     # Теперь система контроля будет знать, выше какой скорости фиксировать нарушения
     try:
-        camera_session.speed_analytics.speed_limit = data.max_speed
+        camera_session.lpr_manager.speed_limit = data.max_speed
     except Exception as e:
         # На случай, если возникла какая-то непредвиденная ошибка при записи в объект
         raise HTTPException(

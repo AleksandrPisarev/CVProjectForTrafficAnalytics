@@ -2,11 +2,11 @@ import threading
 import queue
 import time
 import cv2
-import copy
 from modules.capture import Frame_capture
 from modules.rendering import Rendering
 from modules.detection_tracking import DetectionTracking
 from modules.speed_analytics import SpeedAnalytics
+from modules.lpr_manager import LPRManager
 
 class CameraSession:
     def __init__(self, config, url: str, id: str):
@@ -22,7 +22,8 @@ class CameraSession:
 
         self.rendering = Rendering(config['rendering'])
         self.detection = DetectionTracking(config['detection'])
-        self.speed_analytics = SpeedAnalytics(config['speed_analytics'])
+        self.speed_analytics = SpeedAnalytics()
+        self.lpr_manager = LPRManager(self.id, config['lpr_manager']) # объект является потоком унаследовал threading.Thread
 
         self.raw_queue = queue.Queue(maxsize=1)
         self.render_queue = queue.Queue(maxsize=1)
@@ -52,6 +53,7 @@ class CameraSession:
         self.detection_thread.start()
         self.render_thread.start()
         self.speed_analytics_thread.start()
+        self.lpr_manager.start()
 
         print(f"[Session {self.id}] Потоки захвата и рендеринга успешно запущены и взяты на контроль.")
 
@@ -179,6 +181,11 @@ class CameraSession:
                 # Расчет запишет 'speed' в car, и метод process ниже сразу отрисует её на экране
                 if self.speed_analytics.is_calibrated:
                     self.speed_analytics.calculate_speed(obj_frame)
+
+                    # Отправляем ссылку на готовый кадр в очередь LPR-менеджера
+                    # put_nowait выполняется мгновенно и никогда не затормозит рендеринг видеотрансляции!
+                    if self.lpr_manager.speed_limit is not None:
+                        self.lpr_manager.input_queue.put_nowait(obj_frame)
 
                     # Передаем объект кадра в модуль рендеринга.
                     # Внутри модуля метод .process() берет obj_frame.yolo_result,
@@ -350,7 +357,21 @@ class CameraSession:
         except Exception as e:
             print(f"[Session {self.id}] Ошибка отправки 'stop' в speed_analytics_queue: {e}")
 
-        # 5. Вызываем встроенный метод очистки модуля capture (закрываем OpenCV / RTSP сессию)
+        # 5. ВЫБИВАЕМ ПОТОК LPR МЕНЕДЖЕР ИЗ ЗАВИСАНИЯ
+        try:
+            if self.lpr_manager.input_queue.qsize() > 0:
+                while not self.lpr_manager.input_queue.empty():
+                    try:
+                        self.lpr_manager.input_queue.get_nowait()
+                    except queue.Empty:
+                        break
+
+                # Кладем маркер "stop" на первое место в пустую очередь
+            self.lpr_manager.input_queue.put("stop")
+        except Exception as e:
+            print(f"[Session {self.id}] Ошибка отправки 'stop' в lpr_manager.input_queue: {e}")
+
+        # 6. Вызываем встроенный метод очистки модуля capture (закрываем OpenCV / RTSP сессию)
         if hasattr(self, 'capture') and self.capture is not None:
             try:
                 self.capture.release()
@@ -358,7 +379,7 @@ class CameraSession:
             except Exception as e:
                 print(f"[Session Error {self.id}] Ошибка при закрытии capture: {e}")
 
-        # 6. АРГУМЕНТИРОВАННАЯ ЗАЩИТА: Жестко дожидаемся физической смерти ВСЕХ 3-Х ПОТОКОВ в памяти
+        # 7. АРГУМЕНТИРОВАННАЯ ЗАЩИТА: Жестко дожидаемся физической смерти ВСЕХ 3-Х ПОТОКОВ в памяти
         # Ждем закрытия каждого потока максимум 1 секунду, чтобы не подвесить всё приложение
 
         # Поток 1: Чтение
@@ -377,6 +398,10 @@ class CameraSession:
         if hasattr(self, 'speed_analytics_thread') and self.speed_analytics_thread.is_alive():
             # Просто ждем закрытия потока максимум 1 секунду
             self.speed_analytics_thread.join(timeout=1.0)
+
+        # Поток 5: LPR менеджер
+        if hasattr(self, 'lpr_manager') and self.lpr_manager.is_alive():
+            self.lpr_manager.join(timeout=1.0)
 
         print(f"[Session {self.id}] Все ресурсы и потоки камеры успешно освобождены.")
 

@@ -11,7 +11,7 @@ COPY package.json ./
 # 1. Устанавливаем ВСЕ библиотеки с нуля
 RUN pnpm install
 
-# 2. Добавляем тот самый модуль для Linux, который капризничал
+# 2. Добавляем модуль для Linux
 RUN pnpm add @rollup/rollup-linux-x64-gnu
 
 # Копируем остальной код

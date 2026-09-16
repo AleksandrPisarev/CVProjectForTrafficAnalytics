@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-from sqlalchemy import ForeignKey, String, Integer
+from sqlalchemy import ForeignKey, String, Integer, Column, Float, JSON
 
 # Это базовый класс, от которого будут наследоваться все таблицы
 class Base(DeclarativeBase):
@@ -55,3 +55,17 @@ class SecretSession(Base):
 
     # Статус: 'by_password' (полные права) или 'by_session' (ограниченные)
     auth_type: Mapped[str] = mapped_column(default="by_password", nullable=False)
+
+
+class Violator(Base):
+    __tablename__ = "violators"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    camera_id = Column(String(50), nullable=False)  # Сюда будет писаться IP камеры
+    max_speed = Column(Float, nullable=False)
+    proof_image = Column(String, nullable=False)  # Большой кадр 960px в Base64
+    car_image = Column(String, nullable=False)  # Кроп машины 300px в Base64
+
+    # Словарь вариантов номеров вида {"НОМЕР": "base64..."}
+    # SQLAlchemy сама автоматически переведет словарь Python в JSON-строку при записи
+    plate_variants = Column(JSON, nullable=False)

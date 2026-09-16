@@ -32,6 +32,7 @@ email:
   sender_email: "aleksandrpisarev555@gmail.com"
   sender_password: "jgzfuywquwhaezrf"            # Пароль
 
-speed_analytics:
-  speed_limit: 60                              # Предельная разрешенная скорость на участке (км/ч)
+lpr_manager:
+  model_path: weights/yolov8n-plate.onnx # Путь к модели
+  conf: 0.2                              # Порог уверенности
 #---------------------------------------------------------------------------------------------------

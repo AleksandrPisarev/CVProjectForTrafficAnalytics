@@ -84,6 +84,7 @@ async def create_violator(
         new_violator = Violator(
             camera_id=payload.camera_id,
             max_speed=payload.max_speed,
+            speed_limit=payload.speed_limit,
             proof_image=payload.proof_image,
             car_image=payload.car_image,
             plate_variants=payload.plate_variants
@@ -99,6 +100,7 @@ async def create_violator(
             "id": new_violator.id,
             "camera_id": new_violator.camera_id,
             "max_speed": new_violator.max_speed,
+            "speed_limit": new_violator.speed_limit,
             "proof_image": new_violator.proof_image,
             "car_image": new_violator.car_image,
             "plate_variants": new_violator.plate_variants

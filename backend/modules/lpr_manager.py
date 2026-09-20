@@ -304,6 +304,7 @@ class LPRManager(threading.Thread):
         payload = {
             "camera_id": str(self.camera_ip),
             "max_speed": float(speed),
+            "speed_limit": float(self.speed_limit),
             "proof_image": f"data:image/jpeg;base64,{base64_full}",
             "car_image": f"data:image/jpeg;base64,{base64_car}",
             "plate_variants": encoded_variants  # Словарь вида {"НОМЕР": "base64..."}

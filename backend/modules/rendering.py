@@ -63,7 +63,7 @@ class Rendering:
         # Параметры шрифта для минималистичного дизайна
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.8
-        thickness_text = 1  # Тонкий современный шрифт
+        thickness_text = 2  # Тонкий современный шрифт
         thickness_line = 1  # Тонкие линии для сносок
 
         for car in res:

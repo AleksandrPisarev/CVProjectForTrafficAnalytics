@@ -17,14 +17,6 @@ export default function Documents() {
     return camera ? camera.name : ip
   }
 
-  // Вспомогательная функция поиска разрешенной скорости камеры по IP
-  const getCameraMaxSpeed = (ip) => {
-    if (!cameras) return 60 // Запасной вариант, если стейт пустой
-    const camera = cameras.find((c) => c.ip === String(ip))
-    // Если у камеры есть сохраненное поле max_speed — берем его, иначе возвращаем 60
-    return camera && camera.max_speed ? camera.max_speed : 60
-  }
-
   useEffect(() => {
     // 1. ОДИН РАЗ ПРИ СТАРТЕ: Подтягиваем архив из PostgreSQL
     const fetchArchive = async () => {
@@ -119,10 +111,7 @@ export default function Documents() {
           </TableBody>
         </Table>
       </div>
-
-      {/* ================================================================= */}
-      {/* КАСТОМНОЕ СТЕКЛЯННОЕ МОДАЛЬНОЕ ОКНО ОПЕРАТОРА (ВСПЛЫВАЕТ ПО КЛИКУ) */}
-      {/* ================================================================= */}
+      {/* Стеклянное модальное окно (всплывает по клику) */}
       {selectedViolator && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-900/90 backdrop-blur-2xl p-6 text-white shadow-2xl flex flex-col items-center">
@@ -178,10 +167,9 @@ export default function Documents() {
             <div className="w-full mt-2 p-4 rounded-xl border border-red-500/20 bg-red-500/10 text-center">
               <span className="text-xl font-bold text-red-400">
                 Скорость: {int(selectedViolator.max_speed)} км/ч.
-                Разрешенная скорость: {getCameraMaxSpeed(selectedViolator.camera_id)} км/ч.
+                Разрешенная скорость: {selectedViolator.speed_limit} км/ч.
               </span>
             </div>
-
           </div>
         </div>
       )}

@@ -63,6 +63,7 @@ class Violator(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     camera_id = Column(String(50), nullable=False)  # Сюда будет писаться IP камеры
     max_speed = Column(Float, nullable=False)
+    speed_limit: Mapped[float] = mapped_column(Float, nullable=False)
     proof_image = Column(String, nullable=False)  # Большой кадр 960px в Base64
     car_image = Column(String, nullable=False)  # Кроп машины 300px в Base64
 

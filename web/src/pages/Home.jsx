@@ -10,6 +10,7 @@ import AiControlCard from "@/components/AiControlCard"
 export default function Home() {
   const { activeCamera } = useCameraStore()
   const [metrics, setMetrics] = useState({})
+  const [focusedCameraIp, setFocusedCameraIp] = useState(null)
 
   const hasCamera = activeCamera.length > 0
 
@@ -75,13 +76,28 @@ export default function Home() {
             </div>
           ) : (
             /* СЕТКА С КАМЕРАМИ */
-            <div className={`grid gap-4 w-full h-fit ${getGridLayoutClass()}`}>
+            /* Если включен фокус, убираем сетку и заставляем контейнер занять одну колонку (grid-cols-1) */
+            <div className={`grid gap-4 w-full h-fit ${focusedCameraIp ? 'grid-cols-1' : getGridLayoutClass()}`}>
               {activeCamera.map((cameraIp) => (
-                <CameraStream key={cameraIp} ip={cameraIp} metrics={metrics} />
+                // Вместо удаления из DOM, мы оборачиваем плеер в div
+                // и если включен фокус на ДРУГУЮ камеру — ставим этому div стиль display: none
+                <div 
+                  key={cameraIp}
+                  style={{ 
+                    display: focusedCameraIp && focusedCameraIp !== cameraIp ? 'none' : 'block',
+                    width: '100%'
+                  }}
+                >
+                  <CameraStream 
+                    ip={cameraIp} 
+                    metrics={metrics} 
+                    isFocused={focusedCameraIp === cameraIp}
+                    onToggleFocus={() => setFocusedCameraIp(focusedCameraIp ? null : cameraIp)}
+                  />
+                </div>
               ))}
             </div>
           )}
-
         </section>
 
         {/* ПРАВАЯ ЧАСТЬ: Боковая панель */}

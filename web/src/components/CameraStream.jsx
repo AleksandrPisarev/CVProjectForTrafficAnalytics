@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Eye, EyeOff, X, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, X, AlertCircle, Maximize2, Minimize2 } from 'lucide-react'
 import { useCameraStore } from "@/store/useCameraStore"
 
-export default function CameraStream({ ip, metrics }) {
+export default function CameraStream({ ip, metrics, isFocused, onToggleFocus  }) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [error, setError] = useState(null)
 
@@ -135,6 +135,19 @@ export default function CameraStream({ ip, metrics }) {
         >
           {isAiActive ? <Eye size={13} /> : <EyeOff size={13} />}
           <span>{isAiActive ? "AI: АКТИВЕН" : "AI: ОТКЛЮЧЕН"}</span>
+        </button>
+
+        <button
+          onClick={onToggleFocus} // Передаем клик наверх родителю Home
+          title={isFocused ? "Свернуть в сетку" : "Развернуть на весь экран"}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition-colors border ${
+            isFocused 
+              ? "bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30" 
+              : "bg-white/5 text-slate-300 hover:bg-white/10 border-white/5"
+          }`}
+        >
+          {isFocused ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          <span>{isFocused ? "СВЕРНУТЬ" : "ФОКУС"}</span>
         </button>
 
         <button

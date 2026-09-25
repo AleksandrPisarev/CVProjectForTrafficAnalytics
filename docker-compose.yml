@@ -33,3 +33,21 @@ services:
       - /app/node_modules
     depends_on:
       - api
+
+  # Аналитика GRAFANA
+  grafana:
+    image: grafana/grafana-oss:11.1.0
+    container_name: cvproject-grafana
+    network_mode: "host" # ГРАФАНА ВИДИТ ПК НАПРЯМУЮ КАК ЛОКАЛЬНАЯ ПРОГРАММА!
+    environment:
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: always
+
+# Объявляем волюм для сохранения дашбордов в самом низу файла
+volumes:
+  grafana_data:

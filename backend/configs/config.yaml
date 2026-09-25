@@ -24,7 +24,7 @@ detection:
   track_buffer: 60                  # Время жизни трека в кадрах
 
 database:
-  db_url: "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/ProjectForTrafficAnalytics"
+  db_url: "postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/ProjectForTrafficAnalytics"
 
 email:
   smtp_server: "smtp.gmail.com"                  # Почтовый сервер Google

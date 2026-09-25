@@ -39,7 +39,7 @@ export default function Analytics() {
                 </div>
 
                 {/* Все графики выстроены в одну строчку */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[340px]">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 h-[340px]">
                   
                   {/* График 1: Общий счетчик нарушений */}
                   <div className="rounded-xl border border-white/5 bg-black/20 overflow-hidden h-full">
@@ -52,7 +52,7 @@ export default function Analytics() {
                   </div>
 
                   {/* График 2: Категории тяжести нарушений */}
-                  <div className="rounded-xl border border-white/5 bg-black/20 overflow-hidden h-full">
+                  <div className="lg:col-span-2 rounded-xl border border-white/5 bg-black/20 overflow-hidden h-full">
                     <iframe
                       src={`${grafanaBase}&panelId=2&var-camera_id=${activeCameraIp}`}
                       width="100%"
@@ -61,7 +61,7 @@ export default function Analytics() {
                     ></iframe>
                   </div>
 
-                  {/* График 3: Широкая таблица ТОП-5 с фото автомобилей (Занимает 2 колонки из 4) */}
+                  {/* График 3: Широкая таблица ТОП-5 с фото автомобилей (Занимает 2 колонки из 5) */}
                   <div className="lg:col-span-2 rounded-xl border border-white/5 bg-black/20 overflow-hidden h-full">
                     <iframe
                       src={`${grafanaBase}&panelId=3&var-camera_id=${activeCameraIp}`}

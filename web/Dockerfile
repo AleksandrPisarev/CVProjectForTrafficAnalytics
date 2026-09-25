@@ -8,11 +8,11 @@ WORKDIR /app
 # Копируем только файл со списком библиотек
 COPY package.json ./
 
-# 1. Устанавливаем ВСЕ библиотеки с нуля
-RUN pnpm install
+# 1. Устанавливаем ВСЕ библиотеки с нуля. Добавляем флаг игнорирования блокировок скриптов
+RUN pnpm install --ignore-scripts
 
 # 2. Добавляем модуль для Linux
-RUN pnpm add @rollup/rollup-linux-x64-gnu
+RUN pnpm add @rollup/rollup-linux-x64-gnu --ignore-scripts
 
 # Копируем остальной код
 COPY . .
